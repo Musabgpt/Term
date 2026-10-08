@@ -32,8 +32,16 @@ for exe in "$STAGING/usr/bin/"{python3,node,npm,git}; do
 done
 # Full offline rootfs replaces the minimal 4MB upstream archive and is
 # extracted once at runtime by LinuxEnvironment.
-tar --exclude='./lib/apk/db/lock' --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner \
+tar --hard-dereference --exclude='./lib/apk/db/lock' --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner \
   -czf "$ASSET/alpine-rootfs.tgz" -C "$STAGING" .
+python3 - "$ASSET/alpine-rootfs.tgz" <<'PY'
+import sys, tarfile
+with tarfile.open(sys.argv[1], "r:gz") as tf:
+    hardlinks=[e.name for e in tf if e.islnk()]
+    if hardlinks:
+        raise SystemExit("Hardlinks remain in bundled archive: "+str(hardlinks[:10]))
+print("PASS: rootfs archive has no host hard links")
+PY
 sha256sum "$ASSET/alpine-rootfs.tgz" | awk '{print $1}' > "$ASSET/alpine-rootfs.sha256"
 test "$(stat -c%s "$ASSET/alpine-rootfs.tgz")" -lt 150000000
 echo "Linux runtime + Python/Git/Node/npm bundled: $(du -h "$ASSET/alpine-rootfs.tgz" | cut -f1)"

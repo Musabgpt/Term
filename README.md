@@ -31,3 +31,8 @@ GitHub Actions → بناء الطرفية العربية APK → Artifact ال�
 الإصدار 0.7 يتضمن Bash كصدفة افتراضية، وأدوات Linux إضافية مثل coreutils وnano وtmux وhtop وfindutils وripgrep وjq وopenssh-client وzip/unzip، بجانب Python/Git/Node/npm. هذه الأدوات مضمّنة من وقت البناء ولا تحتاج apk update عند أول تشغيل؛ وبعض برامج TUI قد تحتاج مزيداً من توافق شاشة ANSI على الهاتف.
 
 لحماية بيانات النسخة السابقة، الإصدار 0.7 يستخدم معرّف تطبيق منفصلاً بحيث يثبت بجانب نسخة 0.6؛ ملفات النسخة القديمة لا تنتقل تلقائياً بسبب عزل Android.
+
+
+## 0.8 — ثابت متماسك مع أرشيف Alpine
+النسخ السابقة تعثرت عند zipinfo -> unzip بسبب إنشاء Hard Link على Android. الإصلاح مزدوج: GNU tar --hard-dereference يولد ملفات مستقلة ويتحقق من صفر روابط صلبة في الأرشيف، ومثبت Java يستخدم SafeRootfsExtractor بفحص المسارات، وتحويل روابط Hard Link إلى نسخ ملفات بدلاً من Files.createLink. اختبارات Android JVM تفك أرشيف Alpine الكامل وتتحقق من Bash/Python/Git/Node/npm قبل بناء APK.
+معرّف التطبيق عاد إلى io.musab.arabicterminal بناءً على موافقة المستخدم على حذف النسخ القديمة. مفتاح Debug على GitHub قد يختلف في عمليات البناء اللاحقة، ولذلك لا ينبغي الاعتماد عليه للتحديث دون مفتاح توقيع ثابت وآمن.

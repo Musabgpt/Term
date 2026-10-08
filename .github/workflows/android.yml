@@ -53,7 +53,7 @@ jobs:
           java -cp tests/out DeviceCommandsTest
           java -cp tests/out CommandBatchTest
       - name: بناء APK عبر Android SDK وNDK
-        run: gradle --no-daemon --stacktrace assembleDebug
+        run: gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug
       - name: إيداع APK قابل للتثبيت
         uses: actions/upload-artifact@v4
         with:

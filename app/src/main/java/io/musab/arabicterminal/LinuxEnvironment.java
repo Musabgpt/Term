@@ -36,7 +36,8 @@ public final class LinuxEnvironment {
     }
     public static void install(Context c)throws Exception {
         if(installed(c) && new File(rootfs(c),"usr/bin/python3").exists() &&
-                new File(rootfs(c),"usr/bin/node").exists()){
+                new File(rootfs(c),"usr/bin/node").exists() &&
+                new File(rootfs(c),"bin/bash").exists()){
             refreshDns(c);
             return;
         }
@@ -68,7 +69,7 @@ public final class LinuxEnvironment {
                 throw new IOException("فشل التحقق من بصمة Alpine");
             try(TarArchiveInputStream tar=new TarArchiveInputStream(
                 new GZIPInputStream(new ByteArrayInputStream(archive)))){
-                extract(tar,stage);
+                SafeRootfsExtractor.extract(tar,stage);
             }
             File home=new File(stage,"root"),tmp=new File(stage,"tmp");
             home.mkdirs();tmp.mkdirs();
@@ -80,7 +81,7 @@ public final class LinuxEnvironment {
                     java.nio.charset.StandardCharsets.US_ASCII));
             // Preserve user-created content when upgrading from v0.5. Never wipe
             // the old rootfs unless the replacement has extracted successfully.
-            File backup=new File(c.getFilesDir(),"alpine-backup-before-0.6");
+            File backup=new File(c.getFilesDir(),"alpine-backup");
             if(backup.exists())throw new IOException(
                 "نسخة احتياطية قديمة موجودة. احتفظ بها قبل متابعة الترقية");
             if(root.exists()){
@@ -93,7 +94,7 @@ public final class LinuxEnvironment {
                 throw new IOException("تعذر تفعيل ملفات لينكس");
             }
             Files.write(new File(root,".arabicterminal-installed").toPath(),
-                "Alpine 3.24.2 + offline-tools v0.6\n".getBytes(
+                "Alpine 3.24.2 + offline-tools v0.8\n".getBytes(
                     java.nio.charset.StandardCharsets.UTF_8));
             refreshDns(c);
             if(backup.exists())remove(backup);
@@ -101,60 +102,6 @@ public final class LinuxEnvironment {
             remove(stage);throw error;
         }
     }
-    private static void extract(TarArchiveInputStream input,File folder)throws IOException {
-        Path base=folder.getCanonicalFile().toPath();
-        TarArchiveEntry e;
-        long total=0;int entries=0;
-        List<TarArchiveEntry> links=new ArrayList<>();
-        while((e=input.getNextTarEntry())!=null){
-            if(++entries>100_000)throw new IOException("عدد ملفات التوزيعة كبير جدًا");
-            String name=e.getName().replace('\\','/');
-            if(name.startsWith("/")||name.indexOf('\0')>=0)throw new IOException("مسار غير آمن");
-            Path relative=Paths.get(name).normalize();
-            if(relative.isAbsolute()||relative.startsWith(".."))throw new IOException("مسار خارج التوزيعة");
-            Path item=base.resolve(relative).normalize();
-            if(!item.startsWith(base))throw new IOException("مسار خارج التوزيعة");
-            if(e.isSymbolicLink()||e.isLink()){links.add(e);continue;}
-            Path parent=item.getParent();
-            if(parent!=null && !parent.toFile().isDirectory() && !parent.toFile().mkdirs())
-                throw new IOException("تعذر إنشاء المجلد");
-            if(e.isDirectory()){Files.createDirectories(item);continue;}
-            if(!e.isFile())continue;
-            long size=e.getSize();
-            if(size<0||size>100_000_000||(total+=size)>750_000_000)
-                throw new IOException("تجاوزت التوزيعة حدود الحجم");
-            try(FileOutputStream output=new FileOutputStream(item.toFile())){
-                byte[] buffer=new byte[8192];
-                while(size>0){
-                    int n=input.read(buffer,0,(int)Math.min(size,buffer.length));
-                    if(n<0)throw new IOException("أرشيف Alpine ناقص");
-                    output.write(buffer,0,n);size-=n;
-                }
-            }
-            if((e.getMode()&0111)!=0)item.toFile().setExecutable(true,false);
-            if((e.getMode()&0004)!=0)item.toFile().setReadable(true,false);
-        }
-        for(TarArchiveEntry link:links){
-            Path relative=Paths.get(link.getName()).normalize();
-            if(relative.isAbsolute()||relative.startsWith(".."))continue;
-            Path item=base.resolve(relative).normalize();
-            if(!item.startsWith(base))continue;
-            Path parent=item.getParent();
-            if(parent!=null)Files.createDirectories(parent);
-            Path dest=Paths.get(link.getLinkName());
-            if(link.isSymbolicLink()){
-                if(!dest.isAbsolute()&&!parent.resolve(dest).normalize().startsWith(base))continue;
-                try{Files.createSymbolicLink(item,dest);}
-                catch(java.nio.file.FileAlreadyExistsException ignored){}
-            }else if(link.isLink()&&!dest.isAbsolute()){
-                Path linkTarget=base.resolve(dest).normalize();
-                if(linkTarget.startsWith(base)&&Files.isRegularFile(linkTarget))
-                    try{Files.createLink(item,linkTarget);}
-                    catch(java.nio.file.FileAlreadyExistsException ignored){}
-            }
-        }
-    }
-
     /** Use network-specific resolvers on Android (including cellular/VPN DNS)
      * rather than assuming that public 1.1.1.1 can be reached on every carrier.
      * Does not disable certificate verification or install outside the app.
