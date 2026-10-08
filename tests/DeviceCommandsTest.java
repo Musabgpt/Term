@@ -9,6 +9,7 @@ public final class DeviceCommandsTest {
         total++;
     }
     public static void main(String[] a){
+        assertCommand("فحص الشبكة",ArabicCommandRouter.Kind.NETWORK_DIAG,"");
         assertCommand("افتح واتساب",ArabicCommandRouter.Kind.OPEN_APP,"واتساب");
         assertCommand("افتح تطبيق YouTube",ArabicCommandRouter.Kind.OPEN_APP,"YouTube");
         assertCommand("شغّل تلغرام",ArabicCommandRouter.Kind.OPEN_APP,"تلغرام");

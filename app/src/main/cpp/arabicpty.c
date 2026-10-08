@@ -85,6 +85,7 @@ Java_io_musab_arabicterminal_NativePty_start(JNIEnv* env,jclass type,jboolean ro
                 }
             }
             setenv("PROOT_LOADER",loader,1);
+            setenv("PROOT_NO_SECCOMP","1",1);
             setenv("PROOT_TMP_DIR",temp,1);
             setenv("HOME","/root",1);
             setenv("PATH","/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",1);

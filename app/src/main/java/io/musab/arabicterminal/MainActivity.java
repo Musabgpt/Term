@@ -353,6 +353,13 @@ public final class MainActivity extends Activity {
             case HOME:case BACK:case RECENTS:case NOTIFICATIONS:case QUICK_SETTINGS:
             case SWIPE_UP:case SWIPE_DOWN:case TAP_TEXT:case TAP_POINT:
                 notice(PhoneController.run(this,parsed));break;
+            case NETWORK_DIAG:
+                notice("جارٍ اختبار اتصال أندرويد وDNS وشهادات HTTPS...");
+                new Thread(()->{
+                    String report=NetworkDiagnostics.check(getApplicationContext());
+                    ui.post(()->notice(report));
+                },"network-diagnostics").start();
+                break;
             default:notice("الأمر غير معروف. اكتب «مساعدة» للاطلاع على الدليل.");
         }
     }
