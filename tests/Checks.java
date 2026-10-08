@@ -1,0 +1,43 @@
+import io.musab.arabicterminal.ArabicCommandRouter;
+import io.musab.arabicterminal.TerminalScreen;
+public final class Checks {
+    private static int count=0;
+    private static void check(boolean yes,String title){count++;if(!yes)throw new AssertionError(title);}
+    public static void main(String[] args){
+        check(ArabicCommandRouter.parse("الملفات").command.equals("ls -la"),"الملفات");
+        check(ArabicCommandRouter.parse("أين أنا").command.equals("pwd"),"المجلد");
+        check(ArabicCommandRouter.parse("البطارية").kind==ArabicCommandRouter.Kind.BATTERY,"البطارية");
+        check(ArabicCommandRouter.parse("الهاتف").kind==ArabicCommandRouter.Kind.PHONE,"الهاتف");
+        check(ArabicCommandRouter.parse("!echo مرحبا").command.equals("echo مرحبا"),"shell");
+        check(ArabicCommandRouter.parse("احذف ملف مثال").kind==ArabicCommandRouter.Kind.CONFIRM_DELETE,"تأكيد الحذف");
+        check(ArabicCommandRouter.parse("أنشئ ملف x;rm -rf x").command.equals("touch 'x;rm -rf x'"),"escape");
+        check(ArabicCommandRouter.parse("أنشئ مجلد اسم'ملف").command.equals("mkdir -p 'اسم'\\''ملف'"),"quote");
+        check(ArabicCommandRouter.parse("نظّف الشاشة").kind==ArabicCommandRouter.Kind.CLEAR,"تشكيل");
+        TerminalScreen screen=new TerminalScreen();
+        screen.append("مرحبا\r\nعالم");
+        check(screen.render().contains("عالم"),"UTF8 Arabic");
+        screen.append("\u001b[2J\u001b[Hهاتف");
+        check(screen.render().startsWith("هاتف"),"clear");
+        screen.append("\rباب");
+        check(screen.render().startsWith("باب"),"carriage return");
+        screen.append("\u001b[?1049hبديل\u001b[?1049l");
+        check(!screen.render().contains("بديل"),"alt screen");
+        screen.append("\u001b[31mأحمر\u001b[0m");
+        TerminalScreen.Frame frame=screen.frame();
+        check(frame.foreground.length==frame.text.length(),"colors length");
+        check(frame.foreground[frame.text.indexOf("أحمر")]==0xd75050,"SGR 31");
+        screen.append("\u001b[38;2;11;22;33mX");
+        frame=screen.frame();
+        check(frame.foreground[frame.text.lastIndexOf('X')]==0x0b1621,"RGB truecolor");
+        screen.append("\u001b[6n");
+        check(screen.drainResponse().contains("R"),"cursor response");
+        screen.resize(35,120);
+        check(screen.rows()==35 && screen.columns()==120,"resize");
+        check(screen.drainResponse().isEmpty(),"response drained");
+        screen.append("\u001b[2J😀");
+        check(screen.render().contains("😀"),"emoji codepoint");
+        screen.append("\u001b[2J\u001b[20;10H\u001b[2Kس");
+        check(screen.render().contains("س"),"cursor positioning");
+        System.out.println("PASS: "+count+" standalone engine/Arabic grammar tests");
+    }
+}
