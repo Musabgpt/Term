@@ -77,7 +77,7 @@ public final class ArabicCommandRouter {
             return action(Kind.RECENTS);
         if(eq(s,"الاشعارات","افتح الاشعارات"))return action(Kind.NOTIFICATIONS);
         if(eq(s,"الاختصارات","الاعدادات السريعة","اللوحة السريعة"))return action(Kind.QUICK_SETTINGS);
-        if(eq(s,"اسحب للاعلى","مرر للاعلى","تمرير للاعلى","انزل في الصفحة"))
+        if(eq(s,"اسحب للاعلي","مرر للاعلي","تمرير للاعلي","انزل في الصفحة"))
             return action(Kind.SWIPE_UP);
         if(eq(s,"اسحب للاسفل","مرر للاسفل","تمرير للاسفل","اصعد في الصفحة"))
             return action(Kind.SWIPE_DOWN);
