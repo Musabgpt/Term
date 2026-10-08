@@ -31,30 +31,13 @@ jobs:
           python3 -m py_compile scripts/fetch-linux.py
           bash -n scripts/bundle-linux.sh
           bash scripts/bundle-linux.sh
-      - name: التأكد من شمول برامج لينكس
+      - name: فحص أدوات لينكس المدمجة
         run: |
-          tar -tzf app/src/main/assets/alpine-rootfs.tgz | grep -E '(^./usr/bin/(python3|git|node|npm)$)' | head -12
-          test "$(tar -tzf app/src/main/assets/alpine-rootfs.tgz | grep -E '^./usr/bin/(python3|git|node|npm)
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.13'
-      - name: اختبارات المحرك والأوامر العربية
-        run: |
-          mkdir -p tests/out
-          javac -encoding UTF-8 -d tests/out \
-            app/src/main/java/io/musab/arabicterminal/ArabicCommandRouter.java \
-            app/src/main/java/io/musab/arabicterminal/TerminalScreen.java tests/Checks.java tests/DeviceCommandsTest.java
-          java -cp tests/out Checks
-          java -cp tests/out DeviceCommandsTest
-      - name: بناء APK عبر Android SDK وNDK
-        run: gradle --no-daemon --stacktrace assembleDebug
-      - name: إيداع APK قابل للتثبيت
-        uses: actions/upload-artifact@v4
-        with:
-          name: ArabicTerminal-debug-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
- | wc -l)" -ge 4
+          test -s app/src/main/assets/alpine-rootfs.tgz
+          tar -tzf app/src/main/assets/alpine-rootfs.tgz | grep -Fq './usr/bin/python3'
+          tar -tzf app/src/main/assets/alpine-rootfs.tgz | grep -Fq './usr/bin/git'
+          tar -tzf app/src/main/assets/alpine-rootfs.tgz | grep -Fq './usr/bin/node'
+          tar -tzf app/src/main/assets/alpine-rootfs.tgz | grep -Fq './usr/bin/npm'
       - name: تثبيت Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
