@@ -115,19 +115,19 @@ public final class LinuxEnvironment {
             if((e.getMode()&0111)!=0)item.toFile().setExecutable(true,false);
             if((e.getMode()&0004)!=0)item.toFile().setReadable(true,false);
         }
-        for(TarArchiveEntry e:links){
-            Path relative=Paths.get(e.getName()).normalize();
+        for(TarArchiveEntry link:links){
+            Path relative=Paths.get(link.getName()).normalize();
             if(relative.isAbsolute()||relative.startsWith(".."))continue;
             Path item=base.resolve(relative).normalize();
             if(!item.startsWith(base))continue;
             Path parent=item.getParent();
             if(parent!=null)Files.createDirectories(parent);
-            Path dest=Paths.get(e.getLinkName());
-            if(e.isSymbolicLink()){
+            Path dest=Paths.get(link.getLinkName());
+            if(link.isSymbolicLink()){
                 if(!dest.isAbsolute()&&!parent.resolve(dest).normalize().startsWith(base))continue;
                 try{Files.createSymbolicLink(item,dest);}
                 catch(java.nio.file.FileAlreadyExistsException ignored){}
-            }else if(e.isLink()&&!dest.isAbsolute()){
+            }else if(link.isLink()&&!dest.isAbsolute()){
                 Path linkTarget=base.resolve(dest).normalize();
                 if(linkTarget.startsWith(base)&&Files.isRegularFile(linkTarget))
                     try{Files.createLink(item,linkTarget);}
