@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- No INTERNET permission, no ADB, no remote service. -->
+    <!-- Discover only apps with a launcher icon. No QUERY_ALL_PACKAGES required. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN"/>
+            <category android:name="android.intent.category.LAUNCHER"/>
+        </intent>
+    </queries>
+    <!-- No INTERNET permission, no ADB and no root required for app launching. -->
     <application android:label="الطرفية العربية"
         android:theme="@android:style/Theme.Material.NoActionBar"
-        android:usesCleartextTraffic="false"
-        android:allowBackup="false" android:supportsRtl="true">
+        android:usesCleartextTraffic="false" android:allowBackup="false" android:supportsRtl="true">
         <activity android:name=".MainActivity" android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode">
             <intent-filter>
@@ -12,5 +18,16 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <service android:name=".UiControlService"
+            android:label="تحكم الطرفية العربية"
+            android:description="@string/accessibility_description"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService"/>
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service"/>
+        </service>
     </application>
 </manifest>
