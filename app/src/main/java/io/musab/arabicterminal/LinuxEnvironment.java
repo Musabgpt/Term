@@ -35,7 +35,11 @@ public final class LinuxEnvironment {
             new File(libs,"libproot-loader.so").isFile();
     }
     public static void install(Context c)throws Exception {
-        if(installed(c))return;
+        if(installed(c) && new File(rootfs(c),"usr/bin/python3").exists() &&
+                new File(rootfs(c),"usr/bin/node").exists()){
+            refreshDns(c);
+            return;
+        }
         if(!runtimeAvailable(c))throw new IOException("مكتبات PRoot ARM64 غير موجودة في التطبيق");
         File root=rootfs(c),stage=new File(c.getFilesDir(),"alpine-staging");
         if(stage.exists())remove(stage);
@@ -46,7 +50,7 @@ public final class LinuxEnvironment {
                 ByteArrayOutputStream out=new ByteArrayOutputStream()){
                 byte[] buf=new byte[8192];int n;
                 while((n=in.read(buf))!=-1){
-                    if(out.size()+n>40_000_000)throw new IOException("حجم أرشيف Alpine غير متوقع");
+                    if(out.size()+n>150_000_000)throw new IOException("حجم أرشيف Alpine غير متوقع");
                     out.write(buf,0,n);
                 }
                 archive=out.toByteArray();
@@ -74,10 +78,25 @@ public final class LinuxEnvironment {
             if(!dns.exists())Files.write(dns.toPath(),
                 "nameserver 1.1.1.1\nnameserver 8.8.8.8\n".getBytes(
                     java.nio.charset.StandardCharsets.US_ASCII));
-            if(root.exists())remove(root);
-            if(!stage.renameTo(root))throw new IOException("تعذر تفعيل ملفات لينكس");
+            // Preserve user-created content when upgrading from v0.5. Never wipe
+            // the old rootfs unless the replacement has extracted successfully.
+            File backup=new File(c.getFilesDir(),"alpine-backup-before-0.6");
+            if(backup.exists())throw new IOException(
+                "نسخة احتياطية قديمة موجودة. احتفظ بها قبل متابعة الترقية");
+            if(root.exists()){
+                preserveUserFolder(new File(root,"root"),new File(stage,"root"));
+                preserveUserFolder(new File(root,"home"),new File(stage,"home"));
+                if(!root.renameTo(backup))throw new IOException("تعذر حفظ توزيعة لينكس القديمة");
+            }
+            if(!stage.renameTo(root)){
+                if(backup.exists())backup.renameTo(root);
+                throw new IOException("تعذر تفعيل ملفات لينكس");
+            }
             Files.write(new File(root,".arabicterminal-installed").toPath(),
-                "Alpine 3.24.2\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                "Alpine 3.24.2 + offline-tools v0.6\n".getBytes(
+                    java.nio.charset.StandardCharsets.UTF_8));
+            refreshDns(c);
+            if(backup.exists())remove(backup);
         }catch(Exception error){
             remove(stage);throw error;
         }
@@ -134,6 +153,54 @@ public final class LinuxEnvironment {
                     catch(java.nio.file.FileAlreadyExistsException ignored){}
             }
         }
+    }
+
+    /** Use network-specific resolvers on Android (including cellular/VPN DNS)
+     * rather than assuming that public 1.1.1.1 can be reached on every carrier.
+     * Does not disable certificate verification or install outside the app.
+     */
+    static void refreshDns(Context c) throws IOException {
+        File etc=new File(rootfs(c),"etc");
+        if(!etc.isDirectory())return;
+        StringBuilder dns=new StringBuilder();
+        try{
+            android.net.ConnectivityManager manager=
+                (android.net.ConnectivityManager)c.getSystemService(Context.CONNECTIVITY_SERVICE);
+            if(manager!=null){
+                android.net.Network active=manager.getActiveNetwork();
+                android.net.LinkProperties properties=
+                    active==null?null:manager.getLinkProperties(active);
+                if(properties!=null)for(java.net.InetAddress server:properties.getDnsServers()){
+                    if(dns.length()>128)break;
+                    String ip=server.getHostAddress();
+                    if(ip!=null&&!ip.trim().isEmpty()&&!ip.contains("%"))
+                        dns.append("nameserver ").append(ip).append('\n');
+                }
+            }
+        }catch(SecurityException ignored){}
+        if(dns.length()==0)dns.append("nameserver 1.1.1.1\nnameserver 8.8.8.8\n");
+        java.nio.file.Path dest=new File(etc,"resolv.conf").toPath();
+        // Delete an existing link first so updates cannot follow outside rootfs.
+        if(Files.isSymbolicLink(dest))Files.delete(dest);
+        Files.write(dest,dns.toString().getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+    }
+    private static void preserveUserFolder(File src,File dst)throws IOException {
+        if(!src.exists())return;
+        final Path origin=src.toPath(),target=dst.toPath();
+        Files.walkFileTree(origin,new java.nio.file.SimpleFileVisitor<Path>(){
+            @Override public java.nio.file.FileVisitResult preVisitDirectory(
+                    Path dir,java.nio.file.attribute.BasicFileAttributes attrs)throws IOException {
+                Files.createDirectories(target.resolve(origin.relativize(dir)));
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+            @Override public java.nio.file.FileVisitResult visitFile(
+                    Path file,java.nio.file.attribute.BasicFileAttributes attrs)throws IOException {
+                Path destination=target.resolve(origin.relativize(file));
+                Files.copy(file,destination,java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                    java.nio.file.LinkOption.NOFOLLOW_LINKS);
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+        });
     }
     private static void remove(File folder)throws IOException {
         if(!folder.exists())return;
