@@ -41,7 +41,7 @@ public final class SafeRootfsExtractorTest {
             assertTrue(Files.exists(original));assertTrue(Files.exists(hard));
             assertTrue(Files.isExecutable(hard));
             assertFalse(Files.isSameFile(original,hard));
-            assertEquals(Files.readString(original),Files.readString(hard));
+            assertArrayEquals(Files.readAllBytes(original),Files.readAllBytes(hard));
             assertTrue(Files.isSymbolicLink(dir.resolve("usr/bin/unzip-tool")));
         }
     }
