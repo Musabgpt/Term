@@ -6,6 +6,12 @@ import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.ComponentName;
+import android.content.ServiceConnection;
+import android.os.IBinder;
+import android.text.InputType;
+import android.text.Selection;
+import android.widget.Toast;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Configuration;
@@ -53,8 +59,24 @@ public final class MainActivity extends Activity {
             ACCENT=0xFF54DCAD, FG=0xFFECF3FC, MUTED=0xFFB1C3D5;
     private static final int FILE_PICKER=2026, MAX_SESSIONS=6;
     private final Handler ui=new Handler(Looper.getMainLooper());
-    private final List<Session> sessions=new ArrayList<>();
-    private Session active;
+    private List<TerminalService.Session> sessions=java.util.Collections.emptyList();
+    private TerminalService.Session active;
+    private TerminalService service;
+    private boolean bound;
+    private boolean preparingLinux;
+    private final ServiceConnection connection=new ServiceConnection(){
+        @Override public void onServiceConnected(ComponentName name,IBinder binder){
+            service=((TerminalService.LocalBinder)binder).getService();
+            bound=true;sessions=service.sessions();active=service.selected();
+            service.setListener(()->{if(service!=null){active=service.selected();render();}});
+            if(sessions.isEmpty())prepareLinux();
+            else render();
+        }
+        @Override public void onServiceDisconnected(ComponentName name){
+            service=null;bound=false;active=null;
+            sessions=java.util.Collections.emptyList();
+        }
+    };
     private TextView console, status;
     private ScrollView viewport;
     private EditText entry;
@@ -63,25 +85,33 @@ public final class MainActivity extends Activity {
     private boolean rawMode;
     private boolean useLinux=true;
 
-    private static final class Session {
-        final Object mutex=new Object(), pendingLock=new Object();
-        final StringBuilder pending=new StringBuilder();
-        final TerminalScreen display=new TerminalScreen();
-        final long handle;
-        final String name;
-        final boolean root, linux;
-        volatile boolean finished;
-        boolean flushScheduled;
-        Session(long handle,String name,boolean root,boolean linux){
-            this.handle=handle;this.name=name;this.root=root;this.linux=linux;
-        }
-    }
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
         buildUi();
-        prepareLinux();
+    }
+    @Override protected void onStart(){
+        super.onStart();
+        Intent intent=new Intent(this,TerminalService.class);
+        try{
+            startForegroundService(intent);
+            bindService(intent,connection,Context.BIND_AUTO_CREATE);
+        }catch(Exception ex){
+            Toast.makeText(this,"تعذر تشغيل الخدمة: "+ex.getMessage(),Toast.LENGTH_LONG).show();
+        }
+        if(Build.VERSION.SDK_INT>=33 &&
+          checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=
+              android.content.pm.PackageManager.PERMISSION_GRANTED)
+            requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},810);
+    }
+    @Override protected void onStop(){
+        if(bound&&service!=null){
+            service.setListener(null);
+            unbindService(connection);
+            service=null;bound=false;
+        }
+        super.onStop();
     }
     private int dp(float n){return (int)(getResources().getDisplayMetrics().density*n+0.5f);}
     private TextView label(String s,int size,int color){
@@ -133,12 +163,8 @@ public final class MainActivity extends Activity {
             int newRows=Math.max(8,Math.min(100,(b-t-dp(12))/Math.max(1,console.getLineHeight())));
             if(newCols==columns&&newRows==rows)return;
             columns=newCols;rows=newRows;
-            for(Session session:sessions){
-                session.display.resize(rows,columns);
-                synchronized(session.mutex){
-                    if(!session.finished)NativePty.resize(session.handle,rows,columns);
-                }
-            }
+            if(service!=null)for(TerminalService.Session session:sessions)
+                service.resize(session,rows,columns);
             render();
         });
         HorizontalScrollView bar=new HorizontalScrollView(this);
@@ -156,24 +182,31 @@ public final class MainActivity extends Activity {
         prompt.setGravity(Gravity.CENTER);
         input.addView(prompt,new LinearLayout.LayoutParams(dp(28),dp(47)));
         entry=new EditText(this);
-        entry.setSingleLine(true);entry.setTextSize(15);
+        entry.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE|
+            InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        entry.setSingleLine(false);
+        entry.setMaxLines(7);entry.setMinLines(1);entry.setMaxHeight(dp(175));
+        entry.setHorizontallyScrolling(false);
+        entry.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
+        entry.setTextSize(15);
         entry.setTypeface(Typeface.MONOSPACE);
         entry.setTextColor(FG);entry.setHintTextColor(MUTED);
         entry.setBackgroundColor(0xFF121C2A);
         entry.setPadding(dp(8),0,dp(8),0);
         entry.setHint("أمر لينكس أو أمر عربي...");
         entry.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);
-        entry.setImeOptions(EditorInfo.IME_ACTION_GO|EditorInfo.IME_FLAG_NO_EXTRACT_UI);
+        entry.setImeOptions(EditorInfo.IME_ACTION_SEND|EditorInfo.IME_FLAG_NO_EXTRACT_UI);
         entry.setOnEditorActionListener((v,id,event)->{
-            if(id==EditorInfo.IME_ACTION_GO||(event!=null &&
+            if(id==EditorInfo.IME_ACTION_SEND||(event!=null &&
                 event.getKeyCode()==KeyEvent.KEYCODE_ENTER &&
                 event.getAction()==KeyEvent.ACTION_DOWN)){
                 submit();return true;
             }
             return false;
         });
-        input.addView(entry,new LinearLayout.LayoutParams(0,dp(47),1));
-        input.addView(button("↵",v->submit()));
+        input.addView(entry,new LinearLayout.LayoutParams(0,-2,1));
+        input.addView(button("لصق",v->pasteClipboard()));
+        input.addView(button("▶",v->submit()));
         root.addView(input);
         if(Build.VERSION.SDK_INT>=30){
             root.setOnApplyWindowInsetsListener((view,insets)->{
@@ -189,7 +222,8 @@ public final class MainActivity extends Activity {
         android.widget.PopupMenu popup=new android.widget.PopupMenu(this,anchor);
         String[] names={"لينكس: جلسة جديدة","صدفة أندرويد","صلاحيات Root",
             "الجلسة السابقة","إغلاق الجلسة","تبديل وضع الإدخال",
-            "صلاحيات التحكم بالهاتف","استيراد ملف","نسخ الشاشة","مساعدة"};
+            "صلاحيات التحكم بالهاتف","استيراد ملف","نسخ الشاشة","لصق الحافظة",
+            "نسخ الأمر المكتوب","مساعدة"};
         for(int i=0;i<names.length;i++)popup.getMenu().add(0,i+1,i,names[i]);
         popup.setOnMenuItemClickListener(item->{
             switch(item.getItemId()){
@@ -203,7 +237,9 @@ public final class MainActivity extends Activity {
                 case 7:phoneControlSetup();break;
                 case 8:selectDocument();break;
                 case 9:copyText();break;
-                case 10:help();break;
+                case 10:pasteClipboard();break;
+                case 11:copyInput();break;
+                case 12:help();break;
                 default:return false;
             }
             return true;
@@ -211,6 +247,8 @@ public final class MainActivity extends Activity {
         popup.show();
     }
     private void prepareLinux(){
+        if(service==null||preparingLinux)return;
+        preparingLinux=true;
         status.setText("تهيئة Alpine Linux المحلية...");
         new Thread(()->{
             String error=null;
@@ -218,7 +256,9 @@ public final class MainActivity extends Activity {
             catch(Exception exception){error=exception.getMessage();}
             final String failure=error;
             ui.post(()->{
-                if(isFinishing()||isDestroyed())return;
+                preparingLinux=false;
+                if(isFinishing()||isDestroyed()||service==null)return;
+                if(!sessions.isEmpty()){render();return;}
                 if(failure!=null){
                     useLinux=false;
                     createSession(false);
@@ -233,101 +273,70 @@ public final class MainActivity extends Activity {
         },"linux-offline-installer").start();
     }
     private void createSession(boolean root){
-        if(sessions.size()>=MAX_SESSIONS){notice("الحد الأقصى ست جلسات. أغلق جلسة أولًا.");return;}
+        if(service==null){notice("خدمة الطرفية غير جاهزة");return;}
         try{
-            boolean linux=!root && useLinux && LinuxEnvironment.installed(this)
-                    && LinuxEnvironment.runtimeAvailable(this);
-            if(!root&&useLinux&&!linux){notice("لينكس غير مثبت أو غير مدعوم.");return;}
-            String path=getApplicationInfo().nativeLibraryDir;
-            long h=NativePty.start(root,getFilesDir().getAbsolutePath(),
-                    getCacheDir().getAbsolutePath(),rows,columns,
-                    linux?LinuxEnvironment.rootfs(this).getAbsolutePath():null,
-                    linux?path+"/libproot.so":null,
-                    linux?path+"/libproot-loader.so":null);
-            if(h==0)throw new IOException("لم يتم إنشاء PTY");
-            Session s=new Session(h,"جلسة "+nextId++,root,linux);
-            s.display.resize(rows,columns);
-            sessions.add(s);active=s;
+            boolean linux=!root&&useLinux&&LinuxEnvironment.installed(this)
+                && LinuxEnvironment.runtimeAvailable(this);
+            if(!root&&useLinux&&!linux){notice("Alpine غير جاهز");return;}
+            active=service.create(root,linux,rows,columns);
             render();
-            new Thread(()->readLoop(s),"arabicpty-reader-"+s.name).start();
-        }catch(Exception|UnsatisfiedLinkError ex){
-            notice("تعذر فتح جلسة طرفية: "+ex.getMessage());
-        }
+        }catch(Exception|UnsatisfiedLinkError ex){notice("تعذر فتح الجلسة: "+ex.getMessage());}
     }
     private void previousSession(){
-        if(sessions.isEmpty())return;
-        int position=sessions.indexOf(active);
-        active=sessions.get((position+sessions.size()-1)%sessions.size());
-        render();
+        if(service==null||sessions.isEmpty())return;
+        int current=sessions.indexOf(active);
+        service.select(sessions.get((current+sessions.size()-1)%sessions.size()));
+        active=service.selected();render();
     }
     private void closeActive(){
-        if(active==null)return;
-        Session s=active;
-        sessions.remove(s);
-        synchronized(s.mutex){
-            if(!s.finished)NativePty.terminate(s.handle);
-        }
-        active=sessions.isEmpty()?null:sessions.get(sessions.size()-1);
+        if(service==null||active==null)return;
+        service.close(active);
+        active=service.selected();
         if(active==null)createSession(false);
         else render();
     }
-    private void readLoop(Session s){
-        try(Reader reader=new InputStreamReader(new InputStream(){
-            @Override public int read()throws IOException{
-                byte[] one=new byte[1];int n=read(one,0,1);return n<0?-1:one[0]&255;
-            }
-            @Override public int read(byte[] into,int offset,int count)throws IOException{
-                if(count==0)return 0;
-                byte[] bytes=new byte[Math.min(count,4096)];
-                int n=NativePty.read(s.handle,bytes);
-                if(n<0)return -1;
-                System.arraycopy(bytes,0,into,offset,n);return n;
-            }
-        },StandardCharsets.UTF_8)){
-            char[] chars=new char[4096];
-            int n;
-            while((n=reader.read(chars))>=0)if(n>0)enqueue(s,new String(chars,0,n));
-        }catch(IOException e){enqueue(s,"\r\nتعذرت قراءة جلسة الطرفية: "+e.getMessage()+"\r\n");}
-        synchronized(s.mutex){
-            s.finished=true;
-            NativePty.destroy(s.handle);
-        }
-        ui.post(()->{if(active==s)status.setText(s.name+" — انتهت العملية");});
+    private void write(TerminalService.Session session,String bytes){
+        if(service!=null)service.write(session,bytes);
     }
-    private void enqueue(Session s,String text){
-        synchronized(s.pendingLock){
-            if(s.pending.length()>120000)s.pending.delete(0,s.pending.length()-80000);
-            s.pending.append(text);
-            if(s.flushScheduled)return;
-            s.flushScheduled=true;
-        }
-        ui.postDelayed(()->flush(s),40);
+    private void enqueue(TerminalService.Session session,String text){
+        if(service!=null)service.info(session,text);
     }
-    private void flush(Session s){
-        String payload;
-        synchronized(s.pendingLock){
-            payload=s.pending.toString();s.pending.setLength(0);s.flushScheduled=false;
-        }
-        if(payload.isEmpty())return;
-        s.display.append(payload);
-        String reply=s.display.drainResponse();
-        if(!reply.isEmpty())write(s,reply);
-        if(active==s)render();
+    private void pasteClipboard(){
+        ClipboardManager clipboard=(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
+        if(clipboard==null||!clipboard.hasPrimaryClip()){notice("حافظة الهاتف فارغة");return;}
+        ClipData data=clipboard.getPrimaryClip();
+        if(data==null||data.getItemCount()==0)return;
+        CharSequence value=data.getItemAt(0).coerceToText(this);
+        if(value==null||value.length()==0)return;
+        if(value.length()>250000){notice("النص المنسوخ كبير جدًا");return;}
+        entry.getText().insert(Math.max(0,entry.getSelectionStart()),value);
+        entry.requestFocus();
     }
-    private void write(Session s,String bytes){
-        if(s==null||s.finished)return;
-        synchronized(s.mutex){
-            if(!s.finished){
-                byte[] value=bytes.getBytes(StandardCharsets.UTF_8);
-                NativePty.write(s.handle,value,value.length);
-            }
-        }
+    private void copyValue(String value){
+        ClipboardManager clipboard=(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
+        if(clipboard!=null)clipboard.setPrimaryClip(
+            ClipData.newPlainText("الطرفية العربية",value));
+        Toast.makeText(this,"تم النسخ إلى الحافظة",Toast.LENGTH_SHORT).show();
+    }
+    private void copyInput(){
+        String value=entry.getText().toString();
+        if(value.isEmpty()){notice("مربع الإدخال فارغ");return;}
+        int from=entry.getSelectionStart(),to=entry.getSelectionEnd();
+        if(from>=0&&to>from)copyValue(value.substring(from,to));
+        else copyValue(value);
     }
     private void submit(){
         if(active==null)return;
         String text=entry.getText().toString();
+        if(text.trim().isEmpty())return;
         entry.setText("");
         if(rawMode){write(active,text);return;}
+        if(text.indexOf('\n')>=0 || text.indexOf('\r')>=0){
+            // The persistent shell runs the whole pasted script sequentially.
+            // Preserve here-documents, loops and 'cd' in one PTY session.
+            write(active,CommandBatch.toShell(text));
+            return;
+        }
         ArabicCommandRouter.Parsed parsed=ArabicCommandRouter.parse(text);
         switch(parsed.kind){
             case SHELL:write(active,parsed.command+"\n");break;
@@ -346,7 +355,7 @@ public final class MainActivity extends Activity {
             case IDENTITY:write(active,"id\n");break;
             case SETTINGS:startActivity(new Intent(Settings.ACTION_SETTINGS));break;
             case CHOOSE_FILE:selectDocument();break;
-            case CLEAR:active.display.clear();render();break;
+            case CLEAR:if(service!=null)service.clear(active);render();break;
             case ROOT:confirmRoot();break;
             case LIST_APPS:case OPEN_APP:case OPEN_SYSTEM_APP:case OPEN_SETTINGS_PAGE:
             case OPEN_URL:case DIAL:case SHARE:case ACCESSIBILITY_SETTINGS:
@@ -389,10 +398,12 @@ public final class MainActivity extends Activity {
             i=next;
         }
         console.setText(shown);
-        viewport.post(()->viewport.fullScroll(View.FOCUS_DOWN));
+        if(viewport.getScrollY()+viewport.getHeight()>=console.getHeight()-dp(80))
+            viewport.post(()->viewport.fullScroll(View.FOCUS_DOWN));
     }
     private void notice(String content){
-        if(active!=null)enqueue(active,"\r\n« "+content+" »\r\n");
+        if(service!=null&&active!=null)service.info(active,content);
+        else Toast.makeText(this,content,Toast.LENGTH_LONG).show();
     }
     private void battery(){
         Intent i=registerReceiver(null,new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
@@ -494,24 +505,26 @@ public final class MainActivity extends Activity {
                     byte[] bytes=new byte[8192];int n;
                     while((n=in.read(bytes))!=-1)out.write(bytes,0,n);
                 }
-                Session s=active;if(s!=null)enqueue(s,"\r\nتم الاستيراد: "+dst.getAbsolutePath()+"\r\n");
+                TerminalService.Session session=active;
+                if(session!=null)enqueue(session,"تم الاستيراد: "+dst.getAbsolutePath());
             }catch(Exception error){
-                Session s=active;if(s!=null)enqueue(s,"\r\nفشل الاستيراد: "+error.getMessage()+"\r\n");
+                TerminalService.Session session=active;
+                if(session!=null)enqueue(session,"فشل الاستيراد: "+error.getMessage());
             }
         },"file-import").start();
     }
     private void copyText(){
-        ClipboardManager clipboard=(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
-        if(clipboard!=null&&active!=null){
-            clipboard.setPrimaryClip(ClipData.newPlainText("الطرفية العربية",active.display.render()));
-            notice("تم نسخ نص الشاشة.");
-        }
+        if(active==null)return;
+        CharSequence shown=console.getText();
+        int from=Selection.getSelectionStart(shown);
+        int to=Selection.getSelectionEnd(shown);
+        if(from>=0&&to>from&&to<=shown.length())
+            copyValue(shown.subSequence(from,to).toString());
+        else copyValue(active.display.render());
     }
     @Override public void onConfigurationChanged(Configuration change){super.onConfigurationChanged(change);}
     @Override protected void onDestroy(){
-        for(Session s:sessions){
-            synchronized(s.mutex){if(!s.finished)NativePty.terminate(s.handle);}
-        }
+        // Native sessions are owned by the foreground service, not this screen.
         super.onDestroy();
     }
 }
