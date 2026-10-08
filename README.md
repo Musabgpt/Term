@@ -25,3 +25,9 @@ GitHub Actions → بناء الطرفية العربية APK → Artifact ال�
 نفذ `فحص الشبكة` لاختبار HTTPS من Android، ثم `فحص لينكس` لاختبار DNS و`curl` وإمكانية الكتابة و`apk update` داخل Alpine نفسها. ظهور HTTP 200 في اختبار Android لا يثبت نجاح Linux/PRoot networking. لا تعطل فحص TLS ولا تستخدم `apk --allow-untrusted` لتجاوز أخطاء الاتصال.
 
 اختبار أدوات Alpine المدمجة على سطر واحد: `python3 --version; git --version; node --version; npm --version`. استخدام مسافات بين الأوامر ليس مكافئًا للفواصل المنقوطة.
+
+## تجربة ترمينال كمبيوتر أقرب للينكس الكامل
+
+الإصدار 0.7 يتضمن Bash كصدفة افتراضية، وأدوات Linux إضافية مثل coreutils وnano وtmux وhtop وfindutils وripgrep وjq وopenssh-client وzip/unzip، بجانب Python/Git/Node/npm. هذه الأدوات مضمّنة من وقت البناء ولا تحتاج apk update عند أول تشغيل؛ وبعض برامج TUI قد تحتاج مزيداً من توافق شاشة ANSI على الهاتف.
+
+لحماية بيانات النسخة السابقة، الإصدار 0.7 يستخدم معرّف تطبيق منفصلاً بحيث يثبت بجانب نسخة 0.6؛ ملفات النسخة القديمة لا تنتقل تلقائياً بسبب عزل Android.

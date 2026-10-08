@@ -90,7 +90,7 @@ Java_io_musab_arabicterminal_NativePty_start(JNIEnv* env,jclass type,jboolean ro
             setenv("HOME","/root",1);
             setenv("PATH","/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",1);
             execl(proot,"proot","-r",guest,"-0","-b","/dev","-b","/proc",
-                  "-b","/sys","-w","/root","/bin/sh","-l",(char*)NULL);
+                  "-b","/sys","-w","/root","/bin/bash","-l",(char*)NULL);
             perror("Failed to start Alpine Linux under PRoot");
         } else if(root) {
             /* Root is optional; consent and access are decided by the device's su. */
