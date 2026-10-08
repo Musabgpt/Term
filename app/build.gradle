@@ -5,10 +5,11 @@ android {
     ndkVersion '27.2.12479018'
     defaultConfig {
         applicationId 'io.musab.arabicterminal'
+        ndk { abiFilters 'arm64-v8a' }
         minSdk 26
         targetSdk 35
-        versionCode 4
-        versionName '0.4.0'
+        versionCode 5
+        versionName '0.5.0'
         externalNativeBuild { cmake { cFlags '-std=c11' } }
     }
     externalNativeBuild {
@@ -17,9 +18,22 @@ android {
             version '3.22.1'
         }
     }
+    packaging {
+        jniLibs {
+            useLegacyPackaging true
+            keepDebugSymbols += ['**/libproot.so','**/libproot-loader.so']
+        }
+    }
+    androidResources {
+        noCompress += ['tgz']
+    }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
     buildTypes { release { minifyEnabled false } }
+}
+
+dependencies {
+    implementation 'org.apache.commons:commons-compress:1.27.1'
 }

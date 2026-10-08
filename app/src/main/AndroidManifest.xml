@@ -8,10 +8,12 @@
         </intent>
     </queries>
     <!-- No INTERNET permission, no ADB and no root required for app launching. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application android:label="الطرفية العربية"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:usesCleartextTraffic="false" android:allowBackup="false" android:supportsRtl="true">
         <activity android:name=".MainActivity" android:exported="true"
+            android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>

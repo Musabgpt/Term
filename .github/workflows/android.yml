@@ -24,6 +24,13 @@ jobs:
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.2.12479018' 'cmake;3.22.1'
+      - name: تضمين Alpine Linux وPRoot بالتحقق من البصمات
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq patchelf
+          python3 -m py_compile scripts/fetch-linux.py
+          bash -n scripts/bundle-linux.sh
+          bash scripts/bundle-linux.sh
       - name: تثبيت Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
