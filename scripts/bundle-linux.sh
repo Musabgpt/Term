@@ -17,10 +17,9 @@ mkdir -p "$STAGING"
 tar -xzf "$ASSET/alpine-rootfs.tgz" -C "$STAGING"
 docker run --rm --network host \
   -v "$STAGING:/opt/guest" alpine:3.24 sh -ec '
-    apk --root /opt/guest --arch aarch64 --no-scripts \
-        --no-commit-hooks update
-    apk --root /opt/guest --arch aarch64 --no-scripts \
-        --no-commit-hooks add python3 py3-pip git nodejs npm curl ca-certificates-bundle
+    apk --root /opt/guest --arch aarch64 update
+    apk --root /opt/guest --arch aarch64 add --scripts=no --commit-hooks=no \
+        python3 py3-pip git nodejs npm curl ca-certificates-bundle
     apk --root /opt/guest --arch aarch64 info -e python3 git nodejs npm
     test -f /opt/guest/usr/bin/python3 || test -L /opt/guest/usr/bin/python3
     test -f /opt/guest/usr/bin/node || test -L /opt/guest/usr/bin/node
