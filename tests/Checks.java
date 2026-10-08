@@ -38,6 +38,21 @@ public final class Checks {
         check(screen.render().contains("😀"),"emoji codepoint");
         screen.append("\u001b[2J\u001b[20;10H\u001b[2Kس");
         check(screen.render().contains("س"),"cursor positioning");
+        TerminalScreen editor=new TerminalScreen();
+        editor.resize(24,80);
+        editor.append("PRIMARY_SESSION_MARKER\r\n");
+        editor.append("\u001b[?1049h");
+        editor.append("\u001b[10;10Hnano status");
+        TerminalScreen.Frame alt=editor.frame();
+        check(alt.text.split("\\n",-1).length==24,"alternate screen must retain all rows");
+        check(alt.foreground.length==alt.text.length(),"alternate foreground indices");
+        editor.resize(30,100);
+        editor.append("\u001b[?1049l");
+        check(editor.render().contains("PRIMARY_SESSION_MARKER"),
+            "resize of nano/tmux must preserve original shell buffer");
+        editor.append("\u001b[?1049h\u001b[30;3Htmux footer");
+        check(editor.frame().text.contains("tmux footer"),"tmux footer at last row");
+        editor.append("\u001b[?1049l");
         System.out.println("PASS: "+count+" standalone engine/Arabic grammar tests");
     }
 }

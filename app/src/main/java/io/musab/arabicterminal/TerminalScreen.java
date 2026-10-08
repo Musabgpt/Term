@@ -51,6 +51,17 @@ public final class TerminalScreen {
         Cell[][] resized=new Cell[r][c];
         for(int y=0; y<Math.min(r,rows); y++)
             System.arraycopy(cells[y],0,resized[y],0,Math.min(c,cols));
+        // Resize BOTH buffers so leaving a full-screen editor never destroys
+        // the primary shell text after IME/rotation changes terminal geometry.
+        if(alternate && primary!=null){
+            Cell[][] resizedPrimary=new Cell[r][c];
+            for(int y=0;y<Math.min(r,primary.length);y++)
+                System.arraycopy(primary[y],0,resizedPrimary[y],0,
+                    Math.min(c,primary[y].length));
+            primary=resizedPrimary;
+            originalRow=Math.min(originalRow,r-1);
+            originalCol=Math.min(originalCol,c-1);
+        }
         cells=resized;
         rows=r; cols=c; row=Math.min(row,r-1); col=Math.min(col,c-1);
         top=0; bottom=r-1; pendingWrap=false;
@@ -287,11 +298,14 @@ public final class TerminalScreen {
         List<Integer> f=new ArrayList<>(),b=new ArrayList<>();
         if(!alternate) for(String line:history)appendLine(text,f,b,line);
         int last=rows-1;
-        while(last>0 && rowText(cells[last]).isEmpty())last--;
+        // Editors/tmux paint the entire alternate-screen grid. Do not collapse
+        // its blank rows, which would shift the cursor and status lines.
+        if(!alternate)while(last>0 && rowText(cells[last]).isEmpty())last--;
         for(int y=0;y<=last;y++){
             if(text.length()>0){text.append('\n');f.add(DEFAULT_FG);b.add(DEFAULT_BG);}
             int end=cols;
-            while(end>0 && (cells[y][end-1]==null||cells[y][end-1].glyph.isEmpty()))end--;
+            if(!alternate)while(end>0 &&
+                (cells[y][end-1]==null||cells[y][end-1].glyph.isEmpty()))end--;
             for(int x=0;x<end;x++){
                 Cell cell=cells[y][x];
                 String glyph=cell==null?" ":cell.glyph;

@@ -223,7 +223,7 @@ public final class MainActivity extends Activity {
         String[] names={"لينكس: جلسة جديدة","صدفة أندرويد","صلاحيات Root",
             "الجلسة السابقة","إغلاق الجلسة","تبديل وضع الإدخال",
             "صلاحيات التحكم بالهاتف","استيراد ملف","نسخ الشاشة","لصق الحافظة",
-            "نسخ الأمر المكتوب","مساعدة"};
+            "نسخ الأمر المكتوب","تحديث العرض","مساعدة"};
         for(int i=0;i<names.length;i++)popup.getMenu().add(0,i+1,i,names[i]);
         popup.setOnMenuItemClickListener(item->{
             switch(item.getItemId()){
@@ -239,7 +239,12 @@ public final class MainActivity extends Activity {
                 case 9:copyText();break;
                 case 10:pasteClipboard();break;
                 case 11:copyInput();break;
-                case 12:help();break;
+                case 12:
+                    CharSequence current=console.getText();
+                    if(current instanceof android.text.Spannable)
+                        Selection.removeSelection((android.text.Spannable)current);
+                    render();break;
+                case 13:help();break;
                 default:return false;
             }
             return true;
@@ -385,6 +390,12 @@ public final class MainActivity extends Activity {
         if(active==null){console.setText("");status.setText("لا توجد جلسة");return;}
         status.setText((active.linux?"Alpine Linux":(active.root?"Android Root":"Android Shell"))+
                 " • "+active.name+(active.finished?" • متوقفة":""));
+        // Do not replace TextView text while Android's selection handles are
+        // active. The service keeps buffering output until selection is gone.
+        CharSequence selectedText=console.getText();
+        int selectionStart=Selection.getSelectionStart(selectedText);
+        int selectionEnd=Selection.getSelectionEnd(selectedText);
+        if(selectionStart>=0 && selectionEnd>selectionStart)return;
         TerminalScreen.Frame frame=active.display.frame();
         SpannableStringBuilder shown=new SpannableStringBuilder(frame.text);
         int length=frame.text.length();
