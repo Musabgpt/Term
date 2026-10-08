@@ -118,6 +118,8 @@ public final class MainActivity extends Activity {
         menuScroll.setHorizontalScrollBarEnabled(false);
         LinearLayout menu=row();
         menu.addView(button("جلسة +",v->createSession(false)));
+        menu.addView(button("التطبيقات",v->notice(PhoneController.run(this,ArabicCommandRouter.parse("اعرض التطبيقات")))));
+        menu.addView(button("تحكم الهاتف",v->phoneControlSetup()));
         menu.addView(button("السابقة",v->previousSession()));
         menu.addView(button("إغلاق",v->closeActive()));
         menu.addView(button("الجذر",v->confirmRoot()));
@@ -296,6 +298,11 @@ public final class MainActivity extends Activity {
             case CHOOSE_FILE:selectDocument();break;
             case CLEAR:active.display.clear();render();break;
             case ROOT:confirmRoot();break;
+            case LIST_APPS:case OPEN_APP:case OPEN_SYSTEM_APP:case OPEN_SETTINGS_PAGE:
+            case OPEN_URL:case DIAL:case SHARE:case ACCESSIBILITY_SETTINGS:
+            case HOME:case BACK:case RECENTS:case NOTIFICATIONS:case QUICK_SETTINGS:
+            case SWIPE_UP:case SWIPE_DOWN:case TAP_TEXT:case TAP_POINT:
+                notice(PhoneController.run(this,parsed));break;
             default:notice("الأمر غير معروف. اكتب «مساعدة» للاطلاع على الدليل.");
         }
     }
@@ -350,6 +357,19 @@ public final class MainActivity extends Activity {
             .setNegativeButton("إلغاء",null)
             .setPositiveButton("طلب الجذر",(d,w)->createSession(true)).show();
     }
+    private void phoneControlSetup(){
+        new AlertDialog.Builder(this)
+            .setTitle("التحكم بالهاتف")
+            .setMessage("يمكنك فتح التطبيقات من الطرفية مباشرة بدون أذونات خاصة. "+
+                "أما الرجوع والرئيسية والنقر والتمرير فوق التطبيقات الأخرى فتحتاج تفعيل "+
+                "خدمة «تحكم الطرفية العربية» من إعدادات إمكانية الوصول. "+
+                "ستظهر لوحة عائمة صغيرة تستطيع إخفاءها. الخدمة لا تحفظ محتوى الشاشة ولا ترسل بيانات للإنترنت. "+
+                "فعّلها فقط إذا رغبت ويمكن إيقافها في أي وقت.")
+            .setNegativeButton("إلغاء",null)
+            .setPositiveButton("إعدادات إمكانية الوصول",(dialog,which)->
+                notice(PhoneController.run(this,ArabicCommandRouter.parse("تفعيل التحكم"))))
+            .show();
+    }
     private void help(){
         new AlertDialog.Builder(this).setTitle("دليل الطرفية العربية")
             .setMessage("الملفات — قائمة الملفات\nأين أنا — مجلد العمل\nالهاتف — معلومات الهاتف"+
@@ -357,6 +377,12 @@ public final class MainActivity extends Activity {
                 "\nأنشئ مجلد اسم\nأنشئ ملف اسم\nاذهب إلى مسار\nاقرأ ملف"+
                 "\nاحذف ملف اسم — مع تأكيد\nالهوية — صلاحيات العملية"+
                 "\nالعمليات، النواة، الوقت، مسح، روت، استيراد ملف"+
+                "\n\nالتحكم بالجوال: افتح واتساب، افتح يوتيوب، شغل تلغرام، اعرض التطبيقات."+
+                "\nالكاميرا، الصور، المتصفح، افتح الواي فاي، افتح البلوتوث."+
+                "\nافتح رابط https://example.org، اتصل بالرقم 12345، شارك النص مرحبا."+
+                "\nأوامر الواجهة (بعد تفعيل خدمة التحكم): الرئيسية، رجوع، التطبيقات الأخيرة، الإشعارات، مرر للأعلى، مرر للأسفل، اضغط على إرسال، اضغط عند 100 250."+
+                "\nاكتب «تفعيل التحكم» لإظهار إعدادات الخدمة. ستظهر لوحة عائمة فوق التطبيقات الأخرى."+
+
                 "\n\nالأوامر الإنجليزية مثل ls وpython تُرسل مباشرة للصدفة إن توفرت."+
                 "\n! يرسل الأمر كما هو.\nالوضع التفاعلي يرسل النص بلا Enter."+
                 "\nأزرار التحكم ترسل أحرفًا خامًا مباشرة إلى PTY."+

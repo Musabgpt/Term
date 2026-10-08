@@ -33,8 +33,9 @@ jobs:
           mkdir -p tests/out
           javac -encoding UTF-8 -d tests/out \
             app/src/main/java/io/musab/arabicterminal/ArabicCommandRouter.java \
-            app/src/main/java/io/musab/arabicterminal/TerminalScreen.java tests/Checks.java
+            app/src/main/java/io/musab/arabicterminal/TerminalScreen.java tests/Checks.java tests/DeviceCommandsTest.java
           java -cp tests/out Checks
+          java -cp tests/out DeviceCommandsTest
       - name: بناء APK عبر Android SDK وNDK
         run: gradle --no-daemon --stacktrace assembleDebug
       - name: إيداع APK قابل للتثبيت
