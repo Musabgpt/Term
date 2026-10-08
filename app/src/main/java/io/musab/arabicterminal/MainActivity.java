@@ -360,6 +360,14 @@ public final class MainActivity extends Activity {
                     ui.post(()->notice(report));
                 },"network-diagnostics").start();
                 break;
+            case LINUX_DIAG:
+                if(!active.linux){
+                    notice("فحص لينكس متاح في جلسة Alpine Linux، وليس Android Shell.");
+                } else {
+                    notice("يبدأ الآن فحص DNS والاتصال والكتابة داخل Alpine، دون تعديل الإعدادات.");
+                    write(active,LinuxDiagnostics.shellCommand());
+                }
+                break;
             default:notice("الأمر غير معروف. اكتب «مساعدة» للاطلاع على الدليل.");
         }
     }
@@ -441,7 +449,8 @@ public final class MainActivity extends Activity {
                 "\nاكتب «تفعيل التحكم» لإظهار إعدادات الخدمة. ستظهر لوحة عائمة فوق التطبيقات الأخرى."+
 
                 "\n\nفي Alpine يمكنك استخدام apk add python3، apk add git، apk add nodejs npm عند وجود اتصال بالإنترنت."+ 
-                "\nللتأكد من النظام: cat /etc/os-release. الجذر داخل PRoot لا يمنح Root للجهاز."+ 
+                "\nللتأكد من النظام: cat /etc/os-release. الجذر داخل PRoot لا يمنح Root للجهاز."+
+                "\nفحص الشبكة: اختبار أندرويد. فحص لينكس: تشخيص الاتصال من Alpine."+ 
                 "\n\nالأوامر الإنجليزية مثل ls وpython تُرسل مباشرة للصدفة إن توفرت."+
                 "\n! يرسل الأمر كما هو.\nالوضع التفاعلي يرسل النص بلا Enter."+
                 "\nأزرار التحكم ترسل أحرفًا خامًا مباشرة إلى PTY."+

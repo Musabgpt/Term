@@ -19,3 +19,9 @@ GitHub Actions → بناء الطرفية العربية APK → Artifact ال�
 الواجهة الخاصة بنا Apache-2.0. PRoot وتبعياته لها تراخيص GPL/LGPL خاصة بها، ويجب الحفاظ على الإشعارات وتوفير المصادر عند إعادة توزيعها: https://github.com/termux/termux-packages/tree/master/packages/proot ، https://github.com/proot-me/proot ، https://github.com/termux/libandroid-shmem . Alpine: https://alpinelinux.org/about/ . Apache Commons Compress: Apache-2.0.
 
 لا يمكن للتطبيق تجاوز قيود Android أو الحصول على Root بمجرد قبول إذن إمكانية الوصول. التحكم المتقدم يخضع للصلاحيات الفعلية في النظام.
+
+## تشخيص الشبكة
+
+نفذ `فحص الشبكة` لاختبار HTTPS من Android، ثم `فحص لينكس` لاختبار DNS و`curl` وإمكانية الكتابة و`apk update` داخل Alpine نفسها. ظهور HTTP 200 في اختبار Android لا يثبت نجاح Linux/PRoot networking. لا تعطل فحص TLS ولا تستخدم `apk --allow-untrusted` لتجاوز أخطاء الاتصال.
+
+اختبار أدوات Alpine المدمجة على سطر واحد: `python3 --version; git --version; node --version; npm --version`. استخدام مسافات بين الأوامر ليس مكافئًا للفواصل المنقوطة.

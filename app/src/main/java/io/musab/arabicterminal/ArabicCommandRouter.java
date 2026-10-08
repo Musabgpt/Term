@@ -13,7 +13,7 @@ public final class ArabicCommandRouter {
         LIST_APPS, OPEN_APP, OPEN_SYSTEM_APP, OPEN_SETTINGS_PAGE,
         OPEN_URL, DIAL, SHARE, ACCESSIBILITY_SETTINGS,
         HOME, BACK, RECENTS, NOTIFICATIONS, QUICK_SETTINGS,
-        SWIPE_UP, SWIPE_DOWN, TAP_TEXT, TAP_POINT, NETWORK_DIAG
+        SWIPE_UP, SWIPE_DOWN, TAP_TEXT, TAP_POINT, NETWORK_DIAG, LINUX_DIAG
     }
 
     public static final class Parsed {
@@ -74,6 +74,8 @@ public final class ArabicCommandRouter {
         if(eq(s,"مسح","نظف الشاشة","امسح الشاشة"))return action(Kind.CLEAR);
         if(eq(s,"روت","جذر","صلاحيات الجذر"))return action(Kind.ROOT);
         if(eq(s,"فحص الشبكة","افحص الشبكة","تشخيص الشبكة","اختبار الانترنت"))return action(Kind.NETWORK_DIAG);
+        if(eq(s,"فحص لينكس","تشخيص لينكس","فحص apk","فحص الحزم","تشخيص المستودعات"))
+            return action(Kind.LINUX_DIAG);
         if(eq(s,"التطبيقات","قائمة التطبيقات","اعرض التطبيقات","التطبيقات المثبتة","برامج الهاتف"))
             return action(Kind.LIST_APPS);
         if(eq(s,"تحكم","تفعيل التحكم","اذن التحكم","صلاحية التحكم","امكانية الوصول","تفعيل امكانية الوصول"))
