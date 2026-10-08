@@ -30,7 +30,7 @@ for exe in "$STAGING/usr/bin/"{python3,node,npm,git}; do
 done
 # Full offline rootfs replaces the minimal 4MB upstream archive and is
 # extracted once at runtime by LinuxEnvironment.
-tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner \
+tar --exclude='./lib/apk/db/lock' --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner \
   -czf "$ASSET/alpine-rootfs.tgz" -C "$STAGING" .
 sha256sum "$ASSET/alpine-rootfs.tgz" | awk '{print $1}' > "$ASSET/alpine-rootfs.sha256"
 test "$(stat -c%s "$ASSET/alpine-rootfs.tgz")" -lt 150000000
