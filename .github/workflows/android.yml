@@ -1,0 +1,45 @@
+name: بناء الطرفية العربية APK
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: قراءة الشيفرة
+        uses: actions/checkout@v4
+      - name: تثبيت Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: أدوات Android
+        uses: android-actions/setup-android@v3
+      - name: أدوات البناء الأصلية
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.2.12479018' 'cmake;3.22.1'
+      - name: تثبيت Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: اختبارات المحرك والأوامر العربية
+        run: |
+          mkdir -p tests/out
+          javac -encoding UTF-8 -d tests/out \
+            app/src/main/java/io/musab/arabicterminal/ArabicCommandRouter.java \
+            app/src/main/java/io/musab/arabicterminal/TerminalScreen.java tests/Checks.java
+          java -cp tests/out Checks
+      - name: بناء APK عبر Android SDK وNDK
+        run: gradle --no-daemon --stacktrace assembleDebug
+      - name: إيداع APK قابل للتثبيت
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArabicTerminal-debug-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
