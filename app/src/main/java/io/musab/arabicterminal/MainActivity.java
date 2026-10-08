@@ -61,6 +61,7 @@ public final class MainActivity extends Activity {
     private Button modeButton;
     private int rows=24, columns=75, nextId=1;
     private boolean rawMode;
+    private boolean useLinux=true;
 
     private static final class Session {
         final Object mutex=new Object(), pendingLock=new Object();
@@ -68,11 +69,11 @@ public final class MainActivity extends Activity {
         final TerminalScreen display=new TerminalScreen();
         final long handle;
         final String name;
-        final boolean root;
+        final boolean root, linux;
         volatile boolean finished;
         boolean flushScheduled;
-        Session(long handle,String name,boolean root){
-            this.handle=handle;this.name=name;this.root=root;
+        Session(long handle,String name,boolean root,boolean linux){
+            this.handle=handle;this.name=name;this.root=root;this.linux=linux;
         }
     }
     @Override public void onCreate(Bundle state) {
@@ -80,7 +81,7 @@ public final class MainActivity extends Activity {
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
         buildUi();
-        createSession(false);
+        prepareLinux();
     }
     private int dp(float n){return (int)(getResources().getDisplayMetrics().density*n+0.5f);}
     private TextView label(String s,int size,int color){
@@ -105,97 +106,146 @@ public final class MainActivity extends Activity {
     private void buildUi(){
         LinearLayout root=new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        root.setPadding(dp(8),dp(6),dp(8),dp(6));
-        root.setBackgroundColor(BG);
+        root.setBackgroundColor(0xFF070A0F);
+        root.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+        root.setPadding(dp(5),dp(2),dp(5),dp(2));
         setContentView(root);
-        TextView heading=label("◀  الطرفية العربية",22,ACCENT);
-        heading.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
-        root.addView(heading);
-        status=label("جلسة محلية — جارٍ الاتصال",12,MUTED);
-        root.addView(status);
-        HorizontalScrollView menuScroll=new HorizontalScrollView(this);
-        menuScroll.setHorizontalScrollBarEnabled(false);
-        LinearLayout menu=row();
-        menu.addView(button("جلسة +",v->createSession(false)));
-        menu.addView(button("التطبيقات",v->notice(PhoneController.run(this,ArabicCommandRouter.parse("اعرض التطبيقات")))));
-        menu.addView(button("تحكم الهاتف",v->phoneControlSetup()));
-        menu.addView(button("السابقة",v->previousSession()));
-        menu.addView(button("إغلاق",v->closeActive()));
-        menu.addView(button("الجذر",v->confirmRoot()));
-        menu.addView(button("استيراد ملف",v->selectDocument()));
-        menu.addView(button("نسخ",v->copyText()));
-        menu.addView(button("مساعدة",v->help()));
-        menuScroll.addView(menu);root.addView(menuScroll);
+        LinearLayout header=row();
+        status=label("Alpine Linux • تشغيل...",12,ACCENT);
+        status.setGravity(Gravity.CENTER_VERTICAL|Gravity.LEFT);
+        header.addView(status,new LinearLayout.LayoutParams(0,dp(34),1));
+        header.addView(button("⋮",this::openMenu));
+        root.addView(header);
         viewport=new ScrollView(this);
         viewport.setFillViewport(true);
-        viewport.setBackgroundColor(0xFF050D18);
+        viewport.setBackgroundColor(0xFF070A0F);
         console=label("",14,FG);
         console.setTypeface(Typeface.MONOSPACE);
         console.setGravity(Gravity.LEFT|Gravity.TOP);
         console.setTextDirection(View.TEXT_DIRECTION_LTR);
-        console.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-        console.setPadding(dp(8),dp(8),dp(8),dp(8));
+        console.setPadding(dp(4),dp(4),dp(4),dp(4));
         console.setTextIsSelectable(true);
         viewport.addView(console);
-        LinearLayout.LayoutParams area=new LinearLayout.LayoutParams(-1,0,1);
-        area.topMargin=dp(7);root.addView(viewport,area);
+        root.addView(viewport,new LinearLayout.LayoutParams(-1,0,1));
         viewport.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,oright,ob)->{
-            float charWidth=Math.max(7f,console.getPaint().measureText("M"));
-            int newColumns=Math.max(20,Math.min(200,(int)((r-l-dp(20))/charWidth)));
-            int newRows=Math.max(8,Math.min(90,(b-t-dp(20))/console.getLineHeight()));
-            if(newColumns==columns && newRows==rows)return;
-            columns=newColumns;rows=newRows;
-            for(Session s:sessions){
-                s.display.resize(rows,columns);
-                synchronized(s.mutex){
-                    if(!s.finished)NativePty.resize(s.handle,rows,columns);
+            int newCols=Math.max(20,Math.min(200,
+                (int)((r-l-dp(12))/Math.max(7,console.getPaint().measureText("M")))));
+            int newRows=Math.max(8,Math.min(100,(b-t-dp(12))/Math.max(1,console.getLineHeight())));
+            if(newCols==columns&&newRows==rows)return;
+            columns=newCols;rows=newRows;
+            for(Session session:sessions){
+                session.display.resize(rows,columns);
+                synchronized(session.mutex){
+                    if(!session.finished)NativePty.resize(session.handle,rows,columns);
                 }
             }
             render();
         });
-        HorizontalScrollView keysScroll=new HorizontalScrollView(this);
-        keysScroll.setHorizontalScrollBarEnabled(false);
-        keysScroll.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-        LinearLayout keys=row();keys.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-        key(keys,"هروب","\u001b");key(keys,"جدولة","\t");
-        key(keys,"تحكم+C","\u0003");key(keys,"تحكم+D","\u0004");
-        key(keys,"تحكم+Z","\u001a");key(keys,"↑","\u001b[A");
-        key(keys,"↓","\u001b[B");key(keys,"←","\u001b[D");
-        key(keys,"→","\u001b[C");key(keys,"دخول","\r");
-        key(keys,"حذف","\u007f");
-        keysScroll.addView(keys);root.addView(keysScroll);
-        LinearLayout command=row();command.setGravity(Gravity.CENTER_VERTICAL);
+        HorizontalScrollView bar=new HorizontalScrollView(this);
+        bar.setHorizontalScrollBarEnabled(false);
+        LinearLayout keys=row();
+        key(keys,"ESC","\u001b");key(keys,"TAB","\t");
+        key(keys,"CTRL+C","\u0003");key(keys,"CTRL+D","\u0004");
+        key(keys,"↑","\u001b[A");key(keys,"↓","\u001b[B");
+        key(keys,"←","\u001b[D");key(keys,"→","\u001b[C");
+        key(keys,"↵","\r");key(keys,"⌫","\u007f");
+        bar.addView(keys);root.addView(bar);
+        LinearLayout input=row();
+        input.setGravity(Gravity.CENTER_VERTICAL);
+        TextView prompt=label("❯",20,ACCENT);
+        prompt.setGravity(Gravity.CENTER);
+        input.addView(prompt,new LinearLayout.LayoutParams(dp(28),dp(47)));
         entry=new EditText(this);
-        entry.setSingleLine(true);entry.setTextSize(15);entry.setTextColor(FG);
-        entry.setHintTextColor(MUTED);entry.setBackgroundColor(PANEL);
-        entry.setHint("اكتب أمرًا بالعربية…");
-        entry.setImeOptions(EditorInfo.IME_ACTION_GO);
+        entry.setSingleLine(true);entry.setTextSize(15);
+        entry.setTypeface(Typeface.MONOSPACE);
+        entry.setTextColor(FG);entry.setHintTextColor(MUTED);
+        entry.setBackgroundColor(0xFF121C2A);
+        entry.setPadding(dp(8),0,dp(8),0);
+        entry.setHint("أمر لينكس أو أمر عربي...");
         entry.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);
+        entry.setImeOptions(EditorInfo.IME_ACTION_GO|EditorInfo.IME_FLAG_NO_EXTRACT_UI);
         entry.setOnEditorActionListener((v,id,event)->{
             if(id==EditorInfo.IME_ACTION_GO||(event!=null &&
-                event.getKeyCode()==KeyEvent.KEYCODE_ENTER && event.getAction()==KeyEvent.ACTION_DOWN)){
+                event.getKeyCode()==KeyEvent.KEYCODE_ENTER &&
+                event.getAction()==KeyEvent.ACTION_DOWN)){
                 submit();return true;
             }
             return false;
         });
-        command.addView(entry,new LinearLayout.LayoutParams(0,dp(48),1));
-        command.addView(button("إرسال ↵",v->submit()));root.addView(command);
-        modeButton=button("الوضع: أوامر عربية",v->{
-            rawMode=!rawMode;
-            modeButton.setText(rawMode?"الوضع: كتابة تفاعلية":"الوضع: أوامر عربية");
-            entry.setHint(rawMode?"إرسال نص خام؛ زر دخول لسطر جديد":"اكتب أمرًا بالعربية…");
+        input.addView(entry,new LinearLayout.LayoutParams(0,dp(47),1));
+        input.addView(button("↵",v->submit()));
+        root.addView(input);
+        if(Build.VERSION.SDK_INT>=30){
+            root.setOnApplyWindowInsetsListener((view,insets)->{
+                int ime=insets.getInsets(android.view.WindowInsets.Type.ime()).bottom;
+                int nav=insets.getInsets(android.view.WindowInsets.Type.navigationBars()).bottom;
+                int top=insets.getInsets(android.view.WindowInsets.Type.statusBars()).top;
+                root.setPadding(dp(5),top+dp(2),dp(5),Math.max(ime,nav)+dp(2));
+                return insets;
+            });
+        }
+    }
+    private void openMenu(View anchor){
+        android.widget.PopupMenu popup=new android.widget.PopupMenu(this,anchor);
+        String[] names={"لينكس: جلسة جديدة","صدفة أندرويد","صلاحيات Root",
+            "الجلسة السابقة","إغلاق الجلسة","تبديل وضع الإدخال",
+            "صلاحيات التحكم بالهاتف","استيراد ملف","نسخ الشاشة","مساعدة"};
+        for(int i=0;i<names.length;i++)popup.getMenu().add(0,i+1,i,names[i]);
+        popup.setOnMenuItemClickListener(item->{
+            switch(item.getItemId()){
+                case 1:useLinux=true;createSession(false);break;
+                case 2:useLinux=false;createSession(false);break;
+                case 3:confirmRoot();break;
+                case 4:previousSession();break;
+                case 5:closeActive();break;
+                case 6:rawMode=!rawMode;entry.setHint(rawMode?
+                    "إرسال مباشر للبرنامج التفاعلي":"أمر لينكس أو أمر عربي...");break;
+                case 7:phoneControlSetup();break;
+                case 8:selectDocument();break;
+                case 9:copyText();break;
+                case 10:help();break;
+                default:return false;
+            }
+            return true;
         });
-        root.addView(modeButton);
-        root.addView(label("بدون إنترنت أو ADB • الصلاحيات حسب نظام أندرويد",10,MUTED));
+        popup.show();
+    }
+    private void prepareLinux(){
+        status.setText("تهيئة Alpine Linux المحلية...");
+        new Thread(()->{
+            String error=null;
+            try{LinuxEnvironment.install(getApplicationContext());}
+            catch(Exception exception){error=exception.getMessage();}
+            final String failure=error;
+            ui.post(()->{
+                if(isFinishing()||isDestroyed())return;
+                if(failure!=null){
+                    useLinux=false;
+                    createSession(false);
+                    notice("فشل إعداد لينكس: "+failure+
+                        "\nهذه جلسة أندرويد احتياطية وليست توزيعة Linux.");
+                }else{
+                    useLinux=true;
+                    createSession(false);
+                    notice("Alpine Linux: اكتب cat /etc/os-release أو apk --version");
+                }
+            });
+        },"linux-offline-installer").start();
     }
     private void createSession(boolean root){
         if(sessions.size()>=MAX_SESSIONS){notice("الحد الأقصى ست جلسات. أغلق جلسة أولًا.");return;}
         try{
+            boolean linux=!root && useLinux && LinuxEnvironment.installed(this)
+                    && LinuxEnvironment.runtimeAvailable(this);
+            if(!root&&useLinux&&!linux){notice("لينكس غير مثبت أو غير مدعوم.");return;}
+            String path=getApplicationInfo().nativeLibraryDir;
             long h=NativePty.start(root,getFilesDir().getAbsolutePath(),
-                    getCacheDir().getAbsolutePath(),rows,columns);
+                    getCacheDir().getAbsolutePath(),rows,columns,
+                    linux?LinuxEnvironment.rootfs(this).getAbsolutePath():null,
+                    linux?path+"/libproot.so":null,
+                    linux?path+"/libproot-loader.so":null);
             if(h==0)throw new IOException("لم يتم إنشاء PTY");
-            Session s=new Session(h,"جلسة "+nextId++,root);
+            Session s=new Session(h,"جلسة "+nextId++,root,linux);
             s.display.resize(rows,columns);
             sessions.add(s);active=s;
             render();
@@ -309,8 +359,8 @@ public final class MainActivity extends Activity {
     private void render(){
         if(console==null)return;
         if(active==null){console.setText("");status.setText("لا توجد جلسة");return;}
-        status.setText(active.name+(active.root?" • صلاحيات جذر مطلوبة":" • تطبيق عادي")
-                +(active.finished?" • متوقفة":" • متصلة"));
+        status.setText((active.linux?"Alpine Linux":(active.root?"Android Root":"Android Shell"))+
+                " • "+active.name+(active.finished?" • متوقفة":""));
         TerminalScreen.Frame frame=active.display.frame();
         SpannableStringBuilder shown=new SpannableStringBuilder(frame.text);
         int length=frame.text.length();
@@ -383,6 +433,8 @@ public final class MainActivity extends Activity {
                 "\nأوامر الواجهة (بعد تفعيل خدمة التحكم): الرئيسية، رجوع، التطبيقات الأخيرة، الإشعارات، مرر للأعلى، مرر للأسفل، اضغط على إرسال، اضغط عند 100 250."+
                 "\nاكتب «تفعيل التحكم» لإظهار إعدادات الخدمة. ستظهر لوحة عائمة فوق التطبيقات الأخرى."+
 
+                "\n\nفي Alpine يمكنك استخدام apk add python3، apk add git، apk add nodejs npm عند وجود اتصال بالإنترنت."+ 
+                "\nللتأكد من النظام: cat /etc/os-release. الجذر داخل PRoot لا يمنح Root للجهاز."+ 
                 "\n\nالأوامر الإنجليزية مثل ls وpython تُرسل مباشرة للصدفة إن توفرت."+
                 "\n! يرسل الأمر كما هو.\nالوضع التفاعلي يرسل النص بلا Enter."+
                 "\nأزرار التحكم ترسل أحرفًا خامًا مباشرة إلى PTY."+
