@@ -23,12 +23,27 @@ static void raise_io(JNIEnv *env, const char *message) {
 }
 JNIEXPORT jlong JNICALL
 Java_io_musab_arabicterminal_NativePty_start(JNIEnv* env,jclass type,jboolean root,
-             jstring homeString,jstring tempString,jint rows,jint cols) {
+             jstring homeString,jstring tempString,jint rows,jint cols,
+             jstring linuxRootString,jstring prootString,jstring loaderString) {
     (void)type;
     const char *home=(*env)->GetStringUTFChars(env,homeString,NULL);
     if(!home)return 0;
     const char *temp=(*env)->GetStringUTFChars(env,tempString,NULL);
     if(!temp){(*env)->ReleaseStringUTFChars(env,homeString,home);return 0;}
+    const char *guest=NULL,*proot=NULL,*loader=NULL;
+    if(linuxRootString!=NULL && prootString!=NULL && loaderString!=NULL) {
+        guest=(*env)->GetStringUTFChars(env,linuxRootString,NULL);
+        proot=(*env)->GetStringUTFChars(env,prootString,NULL);
+        loader=(*env)->GetStringUTFChars(env,loaderString,NULL);
+        if(!guest||!proot||!loader) {
+            if(guest)(*env)->ReleaseStringUTFChars(env,linuxRootString,guest);
+            if(proot)(*env)->ReleaseStringUTFChars(env,prootString,proot);
+            if(loader)(*env)->ReleaseStringUTFChars(env,loaderString,loader);
+            (*env)->ReleaseStringUTFChars(env,tempString,temp);
+            (*env)->ReleaseStringUTFChars(env,homeString,home);
+            return 0;
+        }
+    }
     int master=posix_openpt(O_RDWR|O_NOCTTY|O_CLOEXEC);
     if(master<0){raise_io(env,"تعذر فتح جهاز الطرفية");goto failure;}
     if(grantpt(master)!=0 || unlockpt(master)!=0){
@@ -59,7 +74,24 @@ Java_io_musab_arabicterminal_NativePty_start(JNIEnv* env,jclass type,jboolean ro
         setenv("LANG","C.UTF-8",1);
         setenv("PS1","عربي$ ",1);
         chdir(home);
-        if(root) {
+        if(guest) {
+            char *lastSlash=strrchr(proot,'/');
+            if(lastSlash) {
+                char libdir[1024];
+                size_t n=(size_t)(lastSlash-proot);
+                if(n<sizeof(libdir)) {
+                    memcpy(libdir,proot,n);libdir[n]='\0';
+                    setenv("LD_LIBRARY_PATH",libdir,1);
+                }
+            }
+            setenv("PROOT_LOADER",loader,1);
+            setenv("PROOT_TMP_DIR",temp,1);
+            setenv("HOME","/root",1);
+            setenv("PATH","/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",1);
+            execl(proot,"proot","-r",guest,"-0","-b","/dev","-b","/proc",
+                  "-b","/sys","-w","/root","/bin/sh","-l",(char*)NULL);
+            perror("Failed to start Alpine Linux under PRoot");
+        } else if(root) {
             /* Root is optional; consent and access are decided by the device's su. */
             execlp("su","su","-c","exec /system/bin/sh -i",(char*)NULL);
             perror("تعذر تشغيل الجذر");
@@ -69,6 +101,9 @@ Java_io_musab_arabicterminal_NativePty_start(JNIEnv* env,jclass type,jboolean ro
         }
         _exit(127);
     }
+    if(guest)(*env)->ReleaseStringUTFChars(env,linuxRootString,guest);
+    if(proot)(*env)->ReleaseStringUTFChars(env,prootString,proot);
+    if(loader)(*env)->ReleaseStringUTFChars(env,loaderString,loader);
     (*env)->ReleaseStringUTFChars(env,tempString,temp);
     (*env)->ReleaseStringUTFChars(env,homeString,home);
     Pty *pty=(Pty*)calloc(1,sizeof(Pty));
@@ -83,6 +118,9 @@ Java_io_musab_arabicterminal_NativePty_start(JNIEnv* env,jclass type,jboolean ro
     return (jlong)(intptr_t)pty;
 failure:
     if(master>=0)close(master);
+    if(guest)(*env)->ReleaseStringUTFChars(env,linuxRootString,guest);
+    if(proot)(*env)->ReleaseStringUTFChars(env,prootString,proot);
+    if(loader)(*env)->ReleaseStringUTFChars(env,loaderString,loader);
     (*env)->ReleaseStringUTFChars(env,tempString,temp);
     (*env)->ReleaseStringUTFChars(env,homeString,home);
     return 0;
