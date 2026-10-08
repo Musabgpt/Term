@@ -52,6 +52,13 @@ public final class ArabicCommandRouter {
             return s.substring(start.length()).trim();
         return null;
     }
+    private static String originalTail(String original,String normalized,String normalizedTail){
+        // Preserve original Arabic diacritics and capitalization in the argument.
+        String prefix=normalized.substring(0,normalized.length()-normalizedTail.length()).trim();
+        int count=prefix.isEmpty()?0:prefix.split(" ").length;
+        String[] tokens=original.trim().split("\\s+",count+1);
+        return tokens.length>count?tokens[count].trim():normalizedTail;
+    }
     public static Parsed parse(String value){
         if(value==null||value.trim().isEmpty())return action(Kind.UNKNOWN);
         String original=value.trim().replaceAll("\\s+"," ");
@@ -105,18 +112,18 @@ public final class ArabicCommandRouter {
         if(eq(s,"الملفات المخفية"))return shell("ls -la");
         if(eq(s,"مساعدة النظام"))return shell("help");
         String arg=tail(s,"افتح رابط ","افتح الموقع ","رابط ","تصفح ");
-        if(arg!=null)return argument(Kind.OPEN_URL,original.substring(original.length()-arg.length()).trim());
+        if(arg!=null)return argument(Kind.OPEN_URL,originalTail(original,s,arg));
         arg=tail(s,"اتصل بالرقم ","اتصل ب ","اتصل ","اطلب ");
         if(arg!=null)return argument(Kind.DIAL,arg);
         arg=tail(s,"شارك النص ","مشاركة ","شارك ");
-        if(arg!=null)return argument(Kind.SHARE,original.substring(original.length()-arg.length()).trim());
-        arg=tail(s,"اضغط على ","انقر على ","المس ");
-        if(arg!=null)return argument(Kind.TAP_TEXT,original.substring(original.length()-arg.length()).trim());
+        if(arg!=null)return argument(Kind.SHARE,originalTail(original,s,arg));
+        arg=tail(s,"اضغط علي ","انقر علي ","المس ");
+        if(arg!=null)return argument(Kind.TAP_TEXT,originalTail(original,s,arg));
         arg=tail(s,"اضغط عند ","المس عند ");
         if(arg!=null)return argument(Kind.TAP_POINT,arg);
         arg=tail(s,"افتح تطبيق ","شغل تطبيق ","افتح برنامج ","شغل برنامج ",
                    "افتح ","شغل ","شغّل ");
-        if(arg!=null)return argument(Kind.OPEN_APP,original.substring(original.length()-arg.length()).trim());
+        if(arg!=null)return argument(Kind.OPEN_APP,originalTail(original,s,arg));
         String[][] verbs={
             {"اذهب الي ","cd "},{"ادخل ","cd "},
             {"اقرا ","cat "},{"اعرض ملف ","cat "},
