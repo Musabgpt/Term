@@ -28,8 +28,25 @@ verify(archive,sha,filename)
 (assets/"alpine-rootfs.tgz").write_bytes(archive)
 (assets/"alpine-rootfs.sha256").write_text(sha+"\n")
 print(f"Verified Alpine {ALPINE_VERSION}, {len(archive)} bytes")
-packages=get(f"{TERMUX}/dists/stable/main/binary-aarch64/Packages.xz")
-index=lzma.decompress(packages).decode()
+# Official apt hosts can publish .gz or plain Packages but omit .xz.
+# Resolve available format instead of hard-coding the extension.
+import gzip
+import urllib.error
+index=None
+for extension in ("Packages.xz","Packages.gz","Packages"):
+    try:
+        packages=get(f"{TERMUX}/dists/stable/main/binary-aarch64/{extension}")
+        if extension.endswith(".xz"):
+            index=lzma.decompress(packages).decode()
+        elif extension.endswith(".gz"):
+            index=gzip.decompress(packages).decode()
+        else:
+            index=packages.decode()
+        print("Termux package metadata format:",extension)
+        break
+    except urllib.error.HTTPError as e:
+        if e.code!=404:raise
+if index is None:raise RuntimeError("Termux package index unavailable (all official formats)")
 records={}
 for block in index.split("\n\n"):
     item={}
