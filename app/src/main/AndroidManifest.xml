@@ -9,6 +9,7 @@
     </queries>
     <!-- No INTERNET permission, no ADB and no root required for app launching. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <application android:label="الطرفية العربية"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:usesCleartextTraffic="false" android:allowBackup="false" android:supportsRtl="true">
