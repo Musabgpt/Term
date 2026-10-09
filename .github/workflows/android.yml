@@ -51,9 +51,10 @@ jobs:
             app/src/main/java/io/musab/arabicterminal/CommandBatch.java \
             app/src/main/java/io/musab/arabicterminal/PackageCommands.java \
             app/src/main/java/io/musab/arabicterminal/RootArchive.java \
+            app/src/main/java/io/musab/arabicterminal/RootArchiveImporter.java \
             app/src/main/java/io/musab/arabicterminal/ArchiveVerifier.java \
             app/src/main/java/io/musab/arabicterminal/SafeFileImporter.java \
-            tests/Checks.java tests/DeviceCommandsTest.java tests/CommandBatchTest.java tests/PackageCommandsTest.java tests/RootArchiveTest.java tests/ArchiveVerifierTest.java tests/SafeFileImporterTest.java
+            tests/Checks.java tests/DeviceCommandsTest.java tests/CommandBatchTest.java tests/PackageCommandsTest.java tests/RootArchiveTest.java tests/ArchiveVerifierTest.java tests/SafeFileImporterTest.java tests/RootArchiveImporterTest.java
           java -cp tests/out Checks
           java -cp tests/out DeviceCommandsTest
           java -cp tests/out CommandBatchTest
@@ -61,6 +62,7 @@ jobs:
           java -cp tests/out RootArchiveTest
           java -cp tests/out ArchiveVerifierTest
           java -cp tests/out SafeFileImporterTest
+          java -cp tests/out RootArchiveImporterTest
       - name: بناء APK عبر Android SDK وNDK
         run: gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug
       - name: تحقق من توقيع وبصمة APK
