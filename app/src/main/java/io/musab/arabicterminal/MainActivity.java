@@ -46,6 +46,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
@@ -57,7 +58,7 @@ import java.util.Locale;
 public final class MainActivity extends Activity {
     private static final int BG=0xFF0B1422, PANEL=0xFF1C2A3C,
             ACCENT=0xFF54DCAD, FG=0xFFECF3FC, MUTED=0xFFB1C3D5;
-    private static final int FILE_PICKER=2026, MAX_SESSIONS=6;
+    private static final int FILE_PICKER=2026, EXPORT_PICKER=2027, MAX_SESSIONS=6;
     private final Handler ui=new Handler(Looper.getMainLooper());
     private List<TerminalService.Session> sessions=java.util.Collections.emptyList();
     private TerminalService.Session active;
@@ -222,7 +223,7 @@ public final class MainActivity extends Activity {
         android.widget.PopupMenu popup=new android.widget.PopupMenu(this,anchor);
         String[] names={"لينكس: جلسة جديدة","صدفة أندرويد","صلاحيات Root",
             "الجلسة السابقة","إغلاق الجلسة","تبديل وضع الإدخال",
-            "صلاحيات التحكم بالهاتف","استيراد ملف","نسخ الشاشة","لصق الحافظة",
+            "صلاحيات التحكم بالهاتف","استيراد ملف","تصدير مشاريع /root","نسخ الشاشة","لصق الحافظة",
             "نسخ الأمر المكتوب","تحديث العرض","إدارة حزم Alpine","مساعدة"};
         for(int i=0;i<names.length;i++)popup.getMenu().add(0,i+1,i,names[i]);
         popup.setOnMenuItemClickListener(item->{
@@ -236,16 +237,17 @@ public final class MainActivity extends Activity {
                     "إرسال مباشر للبرنامج التفاعلي":"أمر لينكس أو أمر عربي...");break;
                 case 7:phoneControlSetup();break;
                 case 8:selectDocument();break;
-                case 9:copyText();break;
-                case 10:pasteClipboard();break;
-                case 11:copyInput();break;
-                case 12:
+                case 9:exportRoot();break;
+                case 10:copyText();break;
+                case 11:pasteClipboard();break;
+                case 12:copyInput();break;
+                case 13:
                     CharSequence current=console.getText();
                     if(current instanceof android.text.Spannable)
                         Selection.removeSelection((android.text.Spannable)current);
                     render();break;
-                case 13:openPackageManager();break;
-                case 14:help();break;
+                case 14:openPackageManager();break;
+                case 15:help();break;
                 default:return false;
             }
             return true;
@@ -573,6 +575,60 @@ public final class MainActivity extends Activity {
                 "\nلا تملك الطرفية صلاحية تجاوز عزل أندرويد.")
             .setPositiveButton("مفهوم",null).show();
     }
+    /**
+     * A SAF-created ZIP survives app removal and debug-signature changes.
+     * Only Alpine /root is exported, not system packages or Android app data.
+     */
+    private void exportRoot(){
+        File home=new File(LinuxEnvironment.rootfs(this),"root");
+        if(!home.isDirectory()){
+            Toast.makeText(this,"مجلد Alpine /root غير موجود",Toast.LENGTH_LONG).show();
+            return;
+        }
+        new AlertDialog.Builder(this).setTitle("تصدير مشاريع Linux")
+            .setMessage("سيتم إنشاء ZIP داخل مجلد تختاره بنفسك، خارج بيانات التطبيق. "+
+                "أوقف أي برامج تعدّل الملفات أثناء النسخ لضمان اتساق المحتويات. "+
+                "الروابط الرمزية لن تُنسخ لأسباب أمنية. "+
+                "احتفظ بالنسخة قبل حذف التطبيق؛ تحديث APK لا يتطلب حذف بياناته.")
+            .setNegativeButton("إلغاء",null)
+            .setPositiveButton("اختيار مكان الحفظ",(d,w)->{
+                Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType("application/zip");
+                String stamp=new java.text.SimpleDateFormat("yyyyMMdd-HHmm",
+                    Locale.US).format(new java.util.Date());
+                intent.putExtra(Intent.EXTRA_TITLE,"ArabicTerminal-root-"+stamp+".zip");
+                try{startActivityForResult(intent,EXPORT_PICKER);}
+                catch(android.content.ActivityNotFoundException ex){
+                    Toast.makeText(this,"لا يوجد تطبيق لإدارة الملفات",Toast.LENGTH_LONG).show();
+                }
+            }).show();
+    }
+    private void writeRootBackup(Uri uri){
+        final File home=new File(LinuxEnvironment.rootfs(getApplicationContext()),"root");
+        new Thread(()->{
+            String result;
+            try{
+                OutputStream out=getContentResolver().openOutputStream(uri,"w");
+                if(out==null)throw new IOException("تعذر فتح ملف الوجهة");
+                RootArchive.Summary summary=RootArchive.export(home.toPath(),out);
+                result="تم تصدير /root: "+summary.files+" ملف، "+
+                    summary.directories+" مجلد، "+summary.bytes+" بايت."+
+                    (summary.skipped>0?" تم تخطي "+summary.skipped+
+                        " رابط أو ملف خاص.":"");
+            }catch(Exception ex){
+                result="فشل تصدير /root: "+ex.getMessage()+
+                    ". قد يكون الملف الناتج غير مكتمل؛ لا تستخدمه كنسخة احتياطية.";
+            }
+            final String message=result;
+            ui.post(()->{
+                if(!isDestroyed()){
+                    Toast.makeText(this,message,Toast.LENGTH_LONG).show();
+                    if(service!=null&&active!=null)service.info(active,message);
+                }
+            });
+        },"root-archive-export").start();
+    }
     private void selectDocument(){
         Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);
         i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("*/*");
@@ -580,6 +636,10 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onActivityResult(int request,int result,Intent data){
         super.onActivityResult(request,result,data);
+        if(request==EXPORT_PICKER && result==RESULT_OK && data!=null && data.getData()!=null){
+            writeRootBackup(data.getData());
+            return;
+        }
         if(request==FILE_PICKER && result==RESULT_OK && data!=null && data.getData()!=null){
             Uri uri=data.getData();
             new AlertDialog.Builder(this).setTitle("استيراد الملف")
