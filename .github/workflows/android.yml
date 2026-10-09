@@ -52,13 +52,15 @@ jobs:
             app/src/main/java/io/musab/arabicterminal/PackageCommands.java \
             app/src/main/java/io/musab/arabicterminal/RootArchive.java \
             app/src/main/java/io/musab/arabicterminal/ArchiveVerifier.java \
-            tests/Checks.java tests/DeviceCommandsTest.java tests/CommandBatchTest.java tests/PackageCommandsTest.java tests/RootArchiveTest.java tests/ArchiveVerifierTest.java
+            app/src/main/java/io/musab/arabicterminal/SafeFileImporter.java \
+            tests/Checks.java tests/DeviceCommandsTest.java tests/CommandBatchTest.java tests/PackageCommandsTest.java tests/RootArchiveTest.java tests/ArchiveVerifierTest.java tests/SafeFileImporterTest.java
           java -cp tests/out Checks
           java -cp tests/out DeviceCommandsTest
           java -cp tests/out CommandBatchTest
           java -cp tests/out PackageCommandsTest
           java -cp tests/out RootArchiveTest
           java -cp tests/out ArchiveVerifierTest
+          java -cp tests/out SafeFileImporterTest
       - name: بناء APK عبر Android SDK وNDK
         run: gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug
       - name: إيداع APK قابل للتثبيت
