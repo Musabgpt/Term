@@ -53,6 +53,36 @@ public final class Checks {
         editor.append("\u001b[?1049h\u001b[30;3Htmux footer");
         check(editor.frame().text.contains("tmux footer"),"tmux footer at last row");
         editor.append("\u001b[?1049l");
+        // VT compatibility: ED2 does not reposition cursor; the GUI draws
+        // the cursor at the actual visible cell instead of at the end of text.
+        TerminalScreen vt=new TerminalScreen();
+        vt.append("abc");
+        TerminalScreen.Frame caret=vt.frame();
+        check(caret.cursorIndex==3, "cursor follows printed text");
+        check(caret.text.charAt(caret.cursorIndex)==' ', "cursor has a paintable cell");
+        vt.append("\u001b[?25l");
+        check(vt.frame().cursorIndex==-1, "DEC private mode hides cursor");
+        vt.append("\u001b[?25h");
+        check(vt.frame().cursorIndex==3, "DEC private mode restores cursor");
+        vt.append("\u001b[9;7H\u001b[2J\u001b[6n");
+        check(vt.drainResponse().equals("\u001b[9;7R"), "ED2 preserves cursor position");
+        check(vt.frame().cursorIndex>=0, "cursor remains on cleared screen");
+        vt.append("\u001b[H\u001b[31;44;7mA\u001b[27mB");
+        TerminalScreen.Frame reversed=vt.frame();
+        int a=reversed.text.indexOf("AB");
+        check(a>=0, "test cells located");
+        check(reversed.foreground[a]==0x729ded &&
+            reversed.background[a]==0xd75050, "SGR inverse colors");
+        check(reversed.foreground[a+1]==0xd75050 &&
+            reversed.background[a+1]==0x729ded, "SGR 27 disables inverse");
+        vt.append("\u001b[0mC");
+        TerminalScreen.Frame reset=vt.frame();
+        int c=reset.text.indexOf("ABC")+2;
+        check(reset.foreground[c]==TerminalScreen.DEFAULT_FG, "SGR zero resets colors");
+        vt.append("\u001b[?1049;25h\u001b[?25l");
+        check(vt.frame().cursorIndex==-1, "multi-parameter DEC mode and hidden cursor");
+        vt.append("\u001b[?1049l\u001b[?25h");
+        check(vt.frame().text.contains("ABC"), "primary shell buffer preserved");
         System.out.println("PASS: "+count+" standalone engine/Arabic grammar tests");
     }
 }
