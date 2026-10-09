@@ -43,7 +43,6 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -647,7 +646,9 @@ public final class MainActivity extends Activity {
         if(request==FILE_PICKER && result==RESULT_OK && data!=null && data.getData()!=null){
             Uri uri=data.getData();
             new AlertDialog.Builder(this).setTitle("استيراد الملف")
-                .setMessage("نسخ الملف المختار إلى مجلد التطبيق بدون تغيير الأصل؟")
+                .setMessage(LinuxEnvironment.installed(this)?
+                    "نسخ الملف إلى /root/Imports داخل Alpine دون تغيير الأصل؟":
+                    "نسخ الملف إلى مجلد التطبيق دون تغيير الأصل؟")
                 .setNegativeButton("إلغاء",null)
                 .setPositiveButton("نسخ",(d,w)->importFile(uri)).show();
         }
@@ -658,28 +659,30 @@ public final class MainActivity extends Activity {
                 new String[]{OpenableColumns.DISPLAY_NAME},null,null,null)){
             if(cursor!=null && cursor.moveToFirst()&&!cursor.isNull(0))name=cursor.getString(0);
         }catch(Exception ignored){}
-        name=name.replace('/','_').replace('\\','_').replace("..","_")
-                .replaceAll("\\p{Cntrl}","_");
-        if(name.trim().isEmpty()||name.equals("."))name="مستورد";
-        final String safe=name;
+        final String suggested=name;
+        final TerminalService.Session target=active;
+        final Context app=getApplicationContext();
         new Thread(()->{
-            try{
-                File dir=new File(getFilesDir(),"المستوردات");
-                if(!dir.isDirectory()&&!dir.mkdirs())throw new IOException("تعذر إنشاء المجلد");
-                File dst=new File(dir,safe);int k=1;
-                while(dst.exists())dst=new File(dir,k+++"-"+safe);
-                try(InputStream in=getContentResolver().openInputStream(uri);
-                    FileOutputStream out=new FileOutputStream(dst)){
-                    if(in==null)throw new IOException("تعذر فتح الملف");
-                    byte[] bytes=new byte[8192];int n;
-                    while((n=in.read(bytes))!=-1)out.write(bytes,0,n);
-                }
-                TerminalService.Session session=active;
-                if(session!=null)enqueue(session,"تم الاستيراد: "+dst.getAbsolutePath());
+            String result;
+            try(InputStream in=getContentResolver().openInputStream(uri)){
+                if(in==null)throw new IOException("تعذر فتح الملف");
+                boolean alpine=LinuxEnvironment.installed(app);
+                File dir=alpine?
+                    new File(LinuxEnvironment.rootfs(app),"root/Imports"):
+                    new File(getFilesDir(),"المستوردات");
+                java.nio.file.Path dest=SafeFileImporter.copy(in,dir.toPath(),suggested);
+                result="تم الاستيراد: "+(alpine?
+                    "/root/Imports/"+dest.getFileName().toString():dest.toString());
             }catch(Exception error){
-                TerminalService.Session session=active;
-                if(session!=null)enqueue(session,"فشل الاستيراد: "+error.getMessage());
+                result="فشل الاستيراد: "+error.getMessage();
             }
+            final String message=result;
+            ui.post(()->{
+                if(!isDestroyed()){
+                    Toast.makeText(this,message,Toast.LENGTH_LONG).show();
+                    if(service!=null&&target!=null)service.info(target,message);
+                }
+            });
         },"file-import").start();
     }
     private void copyText(){
