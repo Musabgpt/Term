@@ -19,6 +19,16 @@ public final class PackageCommandsTest {
         expect(install.contains("apk-v2 add --simulate 'tree'"),"simulate first");
         expect(install.contains("&& apk-v2 add 'tree'"),"gated install");
         expect(install.contains("mktemp -d"),"unique backup per change");
+        expect(install.contains("if mkdir '/root/.arabicterminal-apk-manager.lock'"),
+            "atomic lock protects package install");
+        expect(install.contains("trap 'rmdir /root/.arabicterminal-apk-manager.lock"),
+            "owner clears lock on completion");
+        expect(install.contains("Package manager busy or stale lock"),
+            "busy process produces an error");
+        expect(update.contains("if mkdir '/root/.arabicterminal-apk-manager.lock'"),
+            "index update also serialized");
+        expect(!PackageCommands.command(Action.SEARCH,"tree").contains("if mkdir "),
+            "read-only package search does not require lock");
         expect(install.contains("cp -a /lib/apk/db"),"backup database");
         expect(install.contains("cp -a /etc/apk/world"),"backup world");
         String remove=PackageCommands.command(Action.REMOVE,"tree");
