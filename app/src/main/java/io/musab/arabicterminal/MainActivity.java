@@ -57,7 +57,7 @@ import java.util.Locale;
 public final class MainActivity extends Activity {
     private static final int BG=0xFF0B1422, PANEL=0xFF1C2A3C,
             ACCENT=0xFF54DCAD, FG=0xFFECF3FC, MUTED=0xFFB1C3D5;
-    private static final int FILE_PICKER=2026, EXPORT_PICKER=2027, MAX_SESSIONS=6;
+    private static final int FILE_PICKER=2026, EXPORT_PICKER=2027, RESTORE_PICKER=2028, MAX_SESSIONS=6;
     private final Handler ui=new Handler(Looper.getMainLooper());
     private List<TerminalService.Session> sessions=java.util.Collections.emptyList();
     private TerminalService.Session active;
@@ -225,7 +225,7 @@ public final class MainActivity extends Activity {
         android.widget.PopupMenu popup=new android.widget.PopupMenu(this,anchor);
         String[] names={"لينكس: جلسة جديدة","صدفة أندرويد","صلاحيات Root",
             "الجلسة السابقة","إغلاق الجلسة","تبديل وضع الإدخال",
-            "صلاحيات التحكم بالهاتف","استيراد ملف","تصدير مشاريع /root","نسخ الشاشة","لصق الحافظة",
+            "صلاحيات التحكم بالهاتف","استيراد ملف","تصدير مشاريع /root","استعادة ZIP إلى /root","نسخ الشاشة","لصق الحافظة",
             "نسخ الأمر المكتوب","تحديث العرض","إدارة حزم Alpine","مساعدة"};
         for(int i=0;i<names.length;i++)popup.getMenu().add(0,i+1,i,names[i]);
         popup.setOnMenuItemClickListener(item->{
@@ -240,16 +240,17 @@ public final class MainActivity extends Activity {
                 case 7:phoneControlSetup();break;
                 case 8:selectDocument();break;
                 case 9:exportRoot();break;
-                case 10:copyText();break;
-                case 11:pasteClipboard();break;
-                case 12:copyInput();break;
-                case 13:
+                case 10:chooseRestore();break;
+                case 11:copyText();break;
+                case 12:pasteClipboard();break;
+                case 13:copyInput();break;
+                case 14:
                     CharSequence current=console.getText();
                     if(current instanceof android.text.Spannable)
                         Selection.removeSelection((android.text.Spannable)current);
                     render();break;
-                case 14:openPackageManager();break;
-                case 15:help();break;
+                case 15:openPackageManager();break;
+                case 16:help();break;
                 default:return false;
             }
             return true;
@@ -632,6 +633,58 @@ public final class MainActivity extends Activity {
             });
         },"root-archive-export").start();
     }
+    /** Import a previous ZIP into an isolated recovery folder; never overwrite /root. */
+    private void chooseRestore(){
+        if(!LinuxEnvironment.installed(this)){
+            Toast.makeText(this,"جهّز Alpine Linux قبل الاستعادة",Toast.LENGTH_LONG).show();
+            return;
+        }
+        new AlertDialog.Builder(this).setTitle("استعادة ملفات Linux")
+            .setMessage("اختر ملف ZIP محفوظًا سابقًا. سيتم فحص مساراته واستعادته "+
+                "في مجلد جديد تحت /root/Recovered-* دون استبدال أي ملفات موجودة. "+
+                "افتح المجلد وراجع الملفات قبل نقلها إلى مشاريعك الأصلية. "+
+                "لا تستعد أرشيفات من جهات غير موثوقة.")
+            .setNegativeButton("إلغاء",null)
+            .setPositiveButton("اختيار ZIP",(d,w)->{
+                Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                i.addCategory(Intent.CATEGORY_OPENABLE);
+                i.setType("application/zip");
+                i.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{
+                    "application/zip","application/x-zip-compressed","application/octet-stream"
+                });
+                try{startActivityForResult(i,RESTORE_PICKER);}
+                catch(android.content.ActivityNotFoundException ex){
+                    Toast.makeText(this,"لا يوجد تطبيق لاختيار الملفات",Toast.LENGTH_LONG).show();
+                }
+            }).show();
+    }
+    private void restoreRootBackup(Uri uri){
+        final Context app=getApplicationContext();
+        final TerminalService.Session target=active;
+        Toast.makeText(this,"جارٍ فحص واستعادة الأرشيف...",Toast.LENGTH_LONG).show();
+        new Thread(()->{
+            String result;
+            try(InputStream source=getContentResolver().openInputStream(uri)){
+                if(source==null)throw new IOException("تعذر قراءة أرشيف ZIP");
+                File home=new File(LinuxEnvironment.rootfs(app),"root");
+                RootArchiveImporter.Result restored=
+                    RootArchiveImporter.restore(source,home.toPath());
+                result="نجحت الاستعادة: "+restored.files+" ملف و"+
+                    restored.directories+" مجلد في /root/"+
+                    restored.destination.getFileName().toString();
+            }catch(Exception ex){
+                result="فشلت الاستعادة بأمان: "+ex.getMessage()+
+                    ". لم يتم دمج ملفات ناقصة مع مشاريعك.";
+            }
+            final String message=result;
+            ui.post(()->{
+                if(!isDestroyed()){
+                    Toast.makeText(this,message,Toast.LENGTH_LONG).show();
+                    if(service!=null&&target!=null)service.info(target,message);
+                }
+            });
+        },"root-archive-restore").start();
+    }
     private void selectDocument(){
         Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);
         i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("*/*");
@@ -641,6 +694,11 @@ public final class MainActivity extends Activity {
         super.onActivityResult(request,result,data);
         if(request==EXPORT_PICKER && result==RESULT_OK && data!=null && data.getData()!=null){
             writeRootBackup(data.getData());
+            return;
+        }
+        if(request==RESTORE_PICKER && result==RESULT_OK &&
+                data!=null && data.getData()!=null){
+            restoreRootBackup(data.getData());
             return;
         }
         if(request==FILE_PICKER && result==RESULT_OK && data!=null && data.getData()!=null){
