@@ -31,7 +31,10 @@ docker run --rm --network host \
 # Install the official Alpine 3.22 ARM64 apk-tools v2 static package using
 # Alpine's signed-index and package verification, and keep current apk intact.
 LEGACY="$RUNNER_TEMP/arabic-terminal-apk-v2"
-mkdir -p "$LEGACY"
+mkdir -p "$LEGACY/etc/apk/keys"
+# Union official Alpine 3.24 rootfs keys with Alpine 3.22 container keys;
+# both are distributed by Alpine, and unknown signatures still fail closed.
+cp "$STAGING/etc/apk/keys/"*.pub "$LEGACY/etc/apk/keys/"
 docker run --rm --network host -v "$LEGACY:/opt/apk-v2" alpine:3.22 sh -ec '
   mkdir -p /opt/apk-v2/etc/apk/keys
   cp /etc/apk/keys/*.pub /opt/apk-v2/etc/apk/keys/
