@@ -421,6 +421,17 @@ public final class MainActivity extends Activity {
                 shown.setSpan(new BackgroundColorSpan(0xFF000000|bg),i,next,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             i=next;
         }
+        // Draw a visible block cursor for Bash, nano, vim and tmux. The
+        // terminal parser tracks DEC private-mode ?25l/?25h visibility.
+        if(frame.cursorIndex>=0 && frame.cursorIndex<length){
+            int from=frame.cursorIndex, to=from+1;
+            if(Character.isHighSurrogate(frame.text.charAt(from)) &&
+                    to<length && Character.isLowSurrogate(frame.text.charAt(to)))to++;
+            shown.setSpan(new BackgroundColorSpan(ACCENT),from,to,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            shown.setSpan(new ForegroundColorSpan(Color.BLACK),from,to,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
         console.setText(shown);
         if(viewport.getScrollY()+viewport.getHeight()>=console.getHeight()-dp(80))
             viewport.post(()->viewport.fullScroll(View.FOCUS_DOWN));
