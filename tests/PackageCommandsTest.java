@@ -18,6 +18,7 @@ public final class PackageCommandsTest {
         String install=PackageCommands.command(Action.INSTALL,"tree");
         expect(install.contains("apk-v2 add --simulate 'tree'"),"simulate first");
         expect(install.contains("&& apk-v2 add 'tree'"),"gated install");
+        expect(install.contains("mktemp -d"),"unique backup per change");
         expect(install.contains("cp -a /lib/apk/db"),"backup database");
         expect(install.contains("cp -a /etc/apk/world"),"backup world");
         String remove=PackageCommands.command(Action.REMOVE,"tree");
@@ -31,6 +32,16 @@ public final class PackageCommandsTest {
         for(String s:new String[]{"apk-tools","apk-tools-static","musl","busybox","alpine-base"})
             reject(Action.REMOVE,s);
         reject(Action.INSTALL,"apk-tools");
+        expect(io.musab.arabicterminal.ArabicCommandRouter.parse("مدير الحزم").kind==
+            io.musab.arabicterminal.ArabicCommandRouter.Kind.PACKAGES,"Arabic package manager");
+        expect(io.musab.arabicterminal.ArabicCommandRouter.parse("تحديث الحزم").kind==
+            io.musab.arabicterminal.ArabicCommandRouter.Kind.PACKAGE_UPDATE,"Arabic update");
+        expect(io.musab.arabicterminal.ArabicCommandRouter.parse("ثبت حزمة tree").kind==
+            io.musab.arabicterminal.ArabicCommandRouter.Kind.PACKAGE_INSTALL,"Arabic install");
+        expect(io.musab.arabicterminal.ArabicCommandRouter.parse("احذف حزمة tree").kind==
+            io.musab.arabicterminal.ArabicCommandRouter.Kind.PACKAGE_REMOVE,"Arabic removal");
+        expect(io.musab.arabicterminal.ArabicCommandRouter.parse("ابحث عن حزمة git").kind==
+            io.musab.arabicterminal.ArabicCommandRouter.Kind.PACKAGE_SEARCH,"Arabic search");
         System.out.println("PASS: "+count+" package manager safety tests");
     }
 }

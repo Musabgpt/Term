@@ -35,8 +35,8 @@ public final class PackageCommands {
             case REMOVE:
                 String verb=action==Action.INSTALL?"add":"del";
                 String quoted="'"+name+"'";
-                String backup="backup=/root/.arabicterminal-apk-backups/$(date +%Y%m%d-%H%M%S)-$$; "+
-                    "mkdir -p \"$backup\" && "+
+                String backup="mkdir -p /root/.arabicterminal-apk-backups && "+
+                    "backup=$(mktemp -d /root/.arabicterminal-apk-backups/$(date +%Y%m%d-%H%M%S)-XXXXXX) && "+
                     "cp -a /lib/apk/db \"$backup/db\" && "+
                     "cp -a /etc/apk/world \"$backup/world\"";
                 operation="apk-v2 "+verb+" --simulate "+quoted+
