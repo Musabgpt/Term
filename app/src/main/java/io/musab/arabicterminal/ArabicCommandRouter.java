@@ -13,7 +13,9 @@ public final class ArabicCommandRouter {
         LIST_APPS, OPEN_APP, OPEN_SYSTEM_APP, OPEN_SETTINGS_PAGE,
         OPEN_URL, DIAL, SHARE, ACCESSIBILITY_SETTINGS,
         HOME, BACK, RECENTS, NOTIFICATIONS, QUICK_SETTINGS,
-        SWIPE_UP, SWIPE_DOWN, TAP_TEXT, TAP_POINT, NETWORK_DIAG, LINUX_DIAG
+        SWIPE_UP, SWIPE_DOWN, TAP_TEXT, TAP_POINT, NETWORK_DIAG, LINUX_DIAG,
+        PACKAGES, PACKAGE_UPDATE, PACKAGE_INSTALLED, PACKAGE_SEARCH,
+        PACKAGE_DETAILS, PACKAGE_INSTALL, PACKAGE_REMOVE
     }
 
     public static final class Parsed {
@@ -74,6 +76,9 @@ public final class ArabicCommandRouter {
         if(eq(s,"مسح","نظف الشاشة","امسح الشاشة"))return action(Kind.CLEAR);
         if(eq(s,"روت","جذر","صلاحيات الجذر"))return action(Kind.ROOT);
         if(eq(s,"فحص الشبكة","افحص الشبكة","تشخيص الشبكة","اختبار الانترنت"))return action(Kind.NETWORK_DIAG);
+        if(eq(s,"مدير الحزم","ادارة الحزم","الحزم","متجر لينكس"))return action(Kind.PACKAGES);
+        if(eq(s,"تحديث الحزم","حدث الحزم","تحديث المستودعات"))return action(Kind.PACKAGE_UPDATE);
+        if(eq(s,"الحزم المثبتة","قائمة الحزم","اعرض الحزم"))return action(Kind.PACKAGE_INSTALLED);
         if(eq(s,"فحص لينكس","تشخيص لينكس","فحص apk","فحص الحزم","تشخيص المستودعات"))
             return action(Kind.LINUX_DIAG);
         if(eq(s,"التطبيقات","قائمة التطبيقات","اعرض التطبيقات","التطبيقات المثبتة","برامج الهاتف"))
@@ -114,6 +119,14 @@ public final class ArabicCommandRouter {
         if(eq(s,"الشبكة","واجهات الشبكة"))return shell("ip addr");
         if(eq(s,"الملفات المخفية"))return shell("ls -la");
         if(eq(s,"مساعدة النظام"))return shell("help");
+        String packageName=tail(s,"ابحث عن حزمة ","ابحث عن برنامج ");
+        if(packageName!=null)return argument(Kind.PACKAGE_SEARCH,originalTail(original,s,packageName));
+        packageName=tail(s,"تفاصيل حزمة ","معلومات حزمة ");
+        if(packageName!=null)return argument(Kind.PACKAGE_DETAILS,originalTail(original,s,packageName));
+        packageName=tail(s,"ثبت حزمة ","ثبت برنامج ","تثبيت حزمة ","نزل حزمة ");
+        if(packageName!=null)return argument(Kind.PACKAGE_INSTALL,originalTail(original,s,packageName));
+        packageName=tail(s,"احذف حزمة ","ازل حزمة ");
+        if(packageName!=null)return argument(Kind.PACKAGE_REMOVE,originalTail(original,s,packageName));
         String arg=tail(s,"افتح رابط ","افتح الموقع ","رابط ","تصفح ");
         if(arg!=null)return argument(Kind.OPEN_URL,originalTail(original,s,arg));
         arg=tail(s,"اتصل بالرقم ","اتصل ب ","اتصل ","اطلب ");
