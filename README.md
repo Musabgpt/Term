@@ -40,3 +40,7 @@ GitHub Actions → بناء الطرفية العربية APK → Artifact ال�
 ## v0.8.2 — Android PRoot apk compatibility experiment
 
 Ship the official Alpine 3.22 aarch64 apk-tools-static v2 as an additional executable at /usr/local/bin/apk-v2. APK v3 (/sbin/apk) remains unchanged. Signed indexes, package verification and HTTPS are not disabled. Compare apk-v2 --version; apk-v2 update with apk update on Android. This is an experimental workaround until validated on a real handset. APK builds are debug-signed; back up app-private files before any uninstall.
+
+## v0.9.0 Package manager
+
+New Alpine Package Manager menu for search, package details, installed packages, update repository indexes, install and remove. Supports Arabic commands for each task. Uses verified `apk-v2` without replacing Alpine's native `apk` (v3). Before adding or removing, runs `--simulate` and backs up `/lib/apk/db` plus `/etc/apk/world` under `/root/.arabicterminal-apk-backups`. Sensitive base packages are protected from UI removal. Full-system upgrades remain disabled because they have not been tested on Android. CI includes standalone command-injection regression tests and the existing Android/Linux checks. APK debug signing may change between builds; back up files before uninstalling an existing APK.
