@@ -172,7 +172,10 @@ public final class MainActivity extends Activity {
         bar.setHorizontalScrollBarEnabled(false);
         LinearLayout keys=row();
         key(keys,"ESC","\u001b");key(keys,"TAB","\t");
+        key(keys,"CTRL+A","\u0001");key(keys,"CTRL+E","\u0005");
+        key(keys,"CTRL+L","\u000c");key(keys,"CTRL+R","\u0012");
         key(keys,"CTRL+C","\u0003");key(keys,"CTRL+D","\u0004");
+        key(keys,"CTRL+Z","\u001a");
         key(keys,"↑","\u001b[A");key(keys,"↓","\u001b[B");
         key(keys,"←","\u001b[D");key(keys,"→","\u001b[C");
         key(keys,"↵","\r");key(keys,"⌫","\u007f");
