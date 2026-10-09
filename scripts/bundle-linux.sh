@@ -26,6 +26,25 @@ docker run --rm --network host \
     test -f /opt/guest/usr/bin/python3 || test -L /opt/guest/usr/bin/python3
     test -f /opt/guest/usr/bin/node || test -L /opt/guest/usr/bin/node
   '
+
+# apk-tools v3 uses syscalls not always supported by Android PRoot.
+# Install the official Alpine 3.22 ARM64 apk-tools v2 static package using
+# Alpine's signed-index and package verification, and keep current apk intact.
+LEGACY="$RUNNER_TEMP/arabic-terminal-apk-v2"
+mkdir -p "$LEGACY"
+docker run --rm --network host -v "$LEGACY:/opt/apk-v2" alpine:3.24 sh -ec '
+  apk --root /opt/apk-v2 --arch aarch64 --no-cache \
+    --repositories-file /dev/null \
+    --repository https://dl-cdn.alpinelinux.org/alpine/v3.22/main \
+    add --scripts=no --commit-hooks=no apk-tools-static
+  test -s /opt/apk-v2/sbin/apk.static
+'
+mkdir -p "$STAGING/usr/local/bin"
+cp "$LEGACY/sbin/apk.static" "$STAGING/usr/local/bin/apk-v2"
+chmod 755 "$STAGING/usr/local/bin/apk-v2"
+file "$STAGING/usr/local/bin/apk-v2"
+test "$(wc -c < "$STAGING/usr/local/bin/apk-v2")" -gt 1000000
+
 echo "Offline developer tools:"
 for exe in "$STAGING/usr/bin/"{python3,node,npm,git}; do
     test -e "$exe" || { echo "Missing packaged executable: $exe"; exit 1; }

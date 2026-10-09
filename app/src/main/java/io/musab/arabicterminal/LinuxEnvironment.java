@@ -37,7 +37,8 @@ public final class LinuxEnvironment {
     public static void install(Context c)throws Exception {
         if(installed(c) && new File(rootfs(c),"usr/bin/python3").exists() &&
                 new File(rootfs(c),"usr/bin/node").exists() &&
-                new File(rootfs(c),"bin/bash").exists()){
+                new File(rootfs(c),"bin/bash").exists() &&
+                new File(rootfs(c),"usr/local/bin/apk-v2").exists()){
             refreshDns(c);
             return;
         }

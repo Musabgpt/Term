@@ -36,3 +36,7 @@ GitHub Actions → بناء الطرفية العربية APK → Artifact ال�
 ## 0.8 — ثابت متماسك مع أرشيف Alpine
 النسخ السابقة تعثرت عند zipinfo -> unzip بسبب إنشاء Hard Link على Android. الإصلاح مزدوج: GNU tar --hard-dereference يولد ملفات مستقلة ويتحقق من صفر روابط صلبة في الأرشيف، ومثبت Java يستخدم SafeRootfsExtractor بفحص المسارات، وتحويل روابط Hard Link إلى نسخ ملفات بدلاً من Files.createLink. اختبارات Android JVM تفك أرشيف Alpine الكامل وتتحقق من Bash/Python/Git/Node/npm قبل بناء APK.
 معرّف التطبيق عاد إلى io.musab.arabicterminal بناءً على موافقة المستخدم على حذف النسخ القديمة. مفتاح Debug على GitHub قد يختلف في عمليات البناء اللاحقة، ولذلك لا ينبغي الاعتماد عليه للتحديث دون مفتاح توقيع ثابت وآمن.
+
+## v0.8.2 — Android PRoot apk compatibility experiment
+
+Ship the official Alpine 3.22 aarch64 apk-tools-static v2 as an additional executable at /usr/local/bin/apk-v2. APK v3 (/sbin/apk) remains unchanged. Signed indexes, package verification and HTTPS are not disabled. Compare apk-v2 --version; apk-v2 update with apk update on Android. This is an experimental workaround until validated on a real handset. APK builds are debug-signed; back up app-private files before any uninstall.
