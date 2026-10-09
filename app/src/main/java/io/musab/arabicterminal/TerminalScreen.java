@@ -20,14 +20,17 @@ public final class TerminalScreen {
     public static final class Frame {
         public final String text;
         public final int[] foreground, background;
-        Frame(String text, int[] foreground, int[] background) {
+        /** Index into text of the visible terminal cursor; -1 when hidden. */
+        public final int cursorIndex;
+        Frame(String text, int[] foreground, int[] background, int cursorIndex) {
             this.text = text; this.foreground = foreground; this.background = background;
+            this.cursorIndex = cursorIndex;
         }
     }
     private Cell[][] cells;
     private int rows=24, cols=80, row, col, savedRow, savedCol, top, bottom;
     private int fg=DEFAULT_FG, bg=DEFAULT_BG;
-    private boolean bold, alternate, pendingWrap;
+    private boolean bold, inverse, alternate, pendingWrap, cursorVisible=true;
     private Cell[][] primary;
     private int originalRow, originalCol;
     private int state;
@@ -87,8 +90,9 @@ public final class TerminalScreen {
             return;
         }
         if(pendingWrap || col+width>cols) { newline(); col=0; pendingWrap=false; }
-        cells[row][col]=new Cell(new String(Character.toChars(cp)),fg,bg,bold);
-        if(width==2 && col+1<cols) cells[row][col+1]=new Cell("",fg,bg,bold);
+        int front=inverse?bg:fg, back=inverse?fg:bg;
+        cells[row][col]=new Cell(new String(Character.toChars(cp)),front,back,bold);
+        if(width==2 && col+1<cols) cells[row][col+1]=new Cell("",front,back,bold);
         col+=width;
         if(col>=cols){ col=cols-1; pendingWrap=true; }
     }
@@ -155,7 +159,8 @@ public final class TerminalScreen {
     private void eraseDisplay(int mode) {
         if(mode==3) { history.clear(); return; }
         if(mode==2) {
-            cells=new Cell[rows][cols]; move(0,0); return;
+            // CSI 2 J erases the display but MUST preserve the cursor position.
+            cells=new Cell[rows][cols]; pendingWrap=false; return;
         }
         if(mode==0) {
             eraseLine(0);
@@ -174,12 +179,14 @@ public final class TerminalScreen {
         return (cube[v/36]<<16)|(cube[(v/6)%6]<<8)|cube[v%6];
     }
     private void colors(int[] p) {
-        if(p.length==1 && p[0]==0) {fg=DEFAULT_FG;bg=DEFAULT_BG;bold=false;return;}
+        if(p.length==1 && p[0]==0) {fg=DEFAULT_FG;bg=DEFAULT_BG;bold=false;inverse=false;return;}
         for(int i=0;i<p.length;i++){
             int c=p[i];
-            if(c==0){fg=DEFAULT_FG;bg=DEFAULT_BG;bold=false;}
+            if(c==0){fg=DEFAULT_FG;bg=DEFAULT_BG;bold=false;inverse=false;}
             else if(c==1) bold=true;
             else if(c==22) bold=false;
+            else if(c==7) inverse=true;
+            else if(c==27) inverse=false;
             else if(c==39) fg=DEFAULT_FG;
             else if(c==49) bg=DEFAULT_BG;
             else if(c>=30 && c<=37) fg=palette(c-30);
@@ -203,8 +210,10 @@ public final class TerminalScreen {
         int[] p=numbers(input);
         int n=param(p,0,1);
         if(privateMode) {
-            if((p[0]==1049 || p[0]==47 || p[0]==1047) && (op=='h'||op=='l'))
-                alternate(op=='h');
+            if(op=='h'||op=='l') for(int code:p){
+                if(code==1049 || code==47 || code==1047) alternate(op=='h');
+                else if(code==25) cursorVisible=op=='h';
+            }
             return;
         }
         switch(op){
@@ -263,7 +272,8 @@ public final class TerminalScreen {
                 else if(ch=='8'){move(savedRow,savedCol);}
                 else if(ch=='D')newline();
                 else if(ch=='M'){if(row==top)scrollDown(1);else move(row-1,col);}
-                else if(ch=='c'){clear();fg=DEFAULT_FG;bg=DEFAULT_BG;bold=false;}
+                else if(ch=='c'){clear();fg=DEFAULT_FG;bg=DEFAULT_BG;
+                    bold=false;inverse=false;cursorVisible=true;}
                 continue;
             }
             if(state==2){
@@ -300,13 +310,21 @@ public final class TerminalScreen {
         int last=rows-1;
         // Editors/tmux paint the entire alternate-screen grid. Do not collapse
         // its blank rows, which would shift the cursor and status lines.
-        if(!alternate)while(last>0 && rowText(cells[last]).isEmpty())last--;
+        if(!alternate) {
+            while(last>0 && rowText(cells[last]).isEmpty())last--;
+            if(cursorVisible) last=Math.max(last,row);
+        }
+        int cursorIndex=-1;
         for(int y=0;y<=last;y++){
             if(text.length()>0){text.append('\n');f.add(DEFAULT_FG);b.add(DEFAULT_BG);}
             int end=cols;
-            if(!alternate)while(end>0 &&
-                (cells[y][end-1]==null||cells[y][end-1].glyph.isEmpty()))end--;
+            if(!alternate) {
+                while(end>0 && (cells[y][end-1]==null ||
+                        cells[y][end-1].glyph.isEmpty()))end--;
+                if(cursorVisible && y==row) end=Math.max(end,col+1);
+            }
             for(int x=0;x<end;x++){
+                if(cursorVisible && y==row && x==col) cursorIndex=text.length();
                 Cell cell=cells[y][x];
                 String glyph=cell==null?" ":cell.glyph;
                 int color=cell==null?DEFAULT_FG:cell.fg;
@@ -317,7 +335,7 @@ public final class TerminalScreen {
         }
         int[] foreground=new int[f.size()],background=new int[b.size()];
         for(int i=0;i<f.size();i++){foreground[i]=f.get(i);background[i]=b.get(i);}
-        return new Frame(text.toString(),foreground,background);
+        return new Frame(text.toString(),foreground,background,cursorIndex);
     }
     private static void appendLine(StringBuilder text,List<Integer> f,List<Integer>b,String line){
         if(text.length()>0){text.append('\n');f.add(DEFAULT_FG);b.add(DEFAULT_BG);}
