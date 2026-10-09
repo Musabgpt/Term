@@ -4,8 +4,6 @@ import android.content.Context;
 import android.os.Build;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -13,7 +11,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
@@ -47,15 +44,11 @@ public final class LinuxEnvironment {
         if(stage.exists())remove(stage);
         if(!stage.mkdirs())throw new IOException("تعذر إنشاء مساحة التوزيعة");
         try{
-            byte[] archive;
-            try(InputStream in=c.getAssets().open("alpine-rootfs.tgz");
-                ByteArrayOutputStream out=new ByteArrayOutputStream()){
-                byte[] buf=new byte[8192];int n;
-                while((n=in.read(buf))!=-1){
-                    if(out.size()+n>150_000_000)throw new IOException("حجم أرشيف Alpine غير متوقع");
-                    out.write(buf,0,n);
-                }
-                archive=out.toByteArray();
+            // The bundled APK asset cannot change between these two reads.
+            // Verify before extraction while keeping archive memory bounded.
+            String actual;
+            try(InputStream in=c.getAssets().open("alpine-rootfs.tgz")){
+                actual=ArchiveVerifier.sha256(in,150_000_000L);
             }
             byte[] expected=new byte[128];int count;
             try(InputStream in=c.getAssets().open("alpine-rootfs.sha256")){
@@ -63,13 +56,11 @@ public final class LinuxEnvironment {
             }
             if(count<=0)throw new IOException("ملف التحقق من التوزيعة غير موجود");
             String checksum=new String(expected,0,count,java.nio.charset.StandardCharsets.US_ASCII).trim();
-            byte[] digest=MessageDigest.getInstance("SHA-256").digest(archive);
-            StringBuilder actual=new StringBuilder();
-            for(byte b:digest)actual.append(String.format(java.util.Locale.ROOT,"%02x",b&0xff));
-            if(!actual.toString().equalsIgnoreCase(checksum))
+            if(!checksum.matches("[a-fA-F0-9]{64}") ||
+                    !actual.equalsIgnoreCase(checksum))
                 throw new IOException("فشل التحقق من بصمة Alpine");
             try(TarArchiveInputStream tar=new TarArchiveInputStream(
-                new GZIPInputStream(new ByteArrayInputStream(archive)))){
+                new GZIPInputStream(c.getAssets().open("alpine-rootfs.tgz")))){
                 SafeRootfsExtractor.extract(tar,stage);
             }
             File home=new File(stage,"root"),tmp=new File(stage,"tmp");

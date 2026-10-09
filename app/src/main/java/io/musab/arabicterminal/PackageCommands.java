@@ -44,6 +44,17 @@ public final class PackageCommands {
                 break;
             default:throw new IllegalArgumentException("عملية غير مدعومة");
         }
+        // Atomic across all sessions sharing Alpine /root; never remove a
+        // possibly live lock without the owning process exiting.
+        if(action==Action.UPDATE||action==Action.INSTALL||action==Action.REMOVE) {
+            String lock="/root/.arabicterminal-apk-manager.lock";
+            operation="( umask 077; "+
+                "if mkdir '"+lock+"' 2>/dev/null; then "+
+                "trap 'rmdir "+lock+" 2>/dev/null || true' EXIT; "+
+                "trap 'exit 129' HUP; trap 'exit 130' INT; trap 'exit 143' TERM; "+
+                operation+"; "+
+                "else echo 'Package manager busy or stale lock: "+lock+"' >&2; false; fi )";
+        }
         return "printf '\\n=== ALPINE PACKAGE MANAGER (apk-v2) ===\\n'; "+
             "if command -v apk-v2 >/dev/null 2>&1; then ( "+operation+" ); "+
             "else echo 'apk-v2 missing from this Alpine build'; false; fi; "+
