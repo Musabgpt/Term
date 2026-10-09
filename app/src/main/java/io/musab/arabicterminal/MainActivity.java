@@ -223,7 +223,7 @@ public final class MainActivity extends Activity {
         String[] names={"لينكس: جلسة جديدة","صدفة أندرويد","صلاحيات Root",
             "الجلسة السابقة","إغلاق الجلسة","تبديل وضع الإدخال",
             "صلاحيات التحكم بالهاتف","استيراد ملف","نسخ الشاشة","لصق الحافظة",
-            "نسخ الأمر المكتوب","تحديث العرض","مساعدة"};
+            "نسخ الأمر المكتوب","تحديث العرض","إدارة حزم Alpine","مساعدة"};
         for(int i=0;i<names.length;i++)popup.getMenu().add(0,i+1,i,names[i]);
         popup.setOnMenuItemClickListener(item->{
             switch(item.getItemId()){
@@ -244,7 +244,8 @@ public final class MainActivity extends Activity {
                     if(current instanceof android.text.Spannable)
                         Selection.removeSelection((android.text.Spannable)current);
                     render();break;
-                case 13:help();break;
+                case 13:openPackageManager();break;
+                case 14:help();break;
                 default:return false;
             }
             return true;
@@ -351,6 +352,13 @@ public final class MainActivity extends Activity {
                     .setNegativeButton("إلغاء",null)
                     .setPositiveButton("حذف",(d,w)->write(active,parsed.command+"\n")).show();
                 break;
+            case PACKAGES:openPackageManager();break;
+            case PACKAGE_UPDATE:runPackage(PackageCommands.Action.UPDATE,null);break;
+            case PACKAGE_INSTALLED:runPackage(PackageCommands.Action.INSTALLED,null);break;
+            case PACKAGE_SEARCH:runPackage(PackageCommands.Action.SEARCH,parsed.command);break;
+            case PACKAGE_DETAILS:runPackage(PackageCommands.Action.DETAILS,parsed.command);break;
+            case PACKAGE_INSTALL:runPackage(PackageCommands.Action.INSTALL,parsed.command);break;
+            case PACKAGE_REMOVE:runPackage(PackageCommands.Action.REMOVE,parsed.command);break;
             case HELP:help();break;
             case PHONE:notice("الشركة: "+Build.MANUFACTURER+"\nالطراز: "+Build.MODEL+
                     "\nأندرويد: "+Build.VERSION.RELEASE+"\nواجهة API: "+Build.VERSION.SDK_INT);break;
@@ -470,7 +478,9 @@ public final class MainActivity extends Activity {
                 "\nأوامر الواجهة (بعد تفعيل خدمة التحكم): الرئيسية، رجوع، التطبيقات الأخيرة، الإشعارات، مرر للأعلى، مرر للأسفل، اضغط على إرسال، اضغط عند 100 250."+
                 "\nاكتب «تفعيل التحكم» لإظهار إعدادات الخدمة. ستظهر لوحة عائمة فوق التطبيقات الأخرى."+
 
-                "\n\nفي Alpine يمكنك استخدام apk add python3، apk add git، apk add nodejs npm عند وجود اتصال بالإنترنت."+ 
+                "\n\nمدير الحزم: قائمة إعداد حزم Alpine، البحث والتثبيت والحذف."+
+                "\nأوامر: تحديث الحزم، الحزم المثبتة، ابحث عن حزمة tree، ثبت حزمة tree، احذف حزمة tree."+
+                "\nيستخدم التطبيق apk-v2 المتوافق. لا تنفذ ترقية شاملة للحزم حاليًا."+ 
                 "\nللتأكد من النظام: cat /etc/os-release. الجذر داخل PRoot لا يمنح Root للجهاز."+
                 "\nفحص الشبكة: اختبار أندرويد. فحص لينكس: تشخيص الاتصال من Alpine."+ 
                 "\n\nالأوامر الإنجليزية مثل ls وpython تُرسل مباشرة للصدفة إن توفرت."+
