@@ -32,11 +32,13 @@ docker run --rm --network host \
 # Alpine's signed-index and package verification, and keep current apk intact.
 LEGACY="$RUNNER_TEMP/arabic-terminal-apk-v2"
 mkdir -p "$LEGACY"
-docker run --rm --network host -v "$LEGACY:/opt/apk-v2" alpine:3.24 sh -ec '
+docker run --rm --network host -v "$LEGACY:/opt/apk-v2" alpine:3.22 sh -ec '
+  mkdir -p /opt/apk-v2/etc/apk/keys
+  cp /etc/apk/keys/*.pub /opt/apk-v2/etc/apk/keys/
   apk --root /opt/apk-v2 --arch aarch64 --initdb --no-cache \
     --repositories-file /dev/null \
     --repository https://dl-cdn.alpinelinux.org/alpine/v3.22/main \
-    add --scripts=no --commit-hooks=no apk-tools-static
+    add apk-tools-static
   test -s /opt/apk-v2/sbin/apk.static
 '
 mkdir -p "$STAGING/usr/local/bin"
