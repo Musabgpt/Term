@@ -33,7 +33,7 @@ docker run --rm --network host \
 LEGACY="$RUNNER_TEMP/arabic-terminal-apk-v2"
 mkdir -p "$LEGACY"
 docker run --rm --network host -v "$LEGACY:/opt/apk-v2" alpine:3.24 sh -ec '
-  apk --root /opt/apk-v2 --arch aarch64 --no-cache \
+  apk --root /opt/apk-v2 --arch aarch64 --initdb --no-cache \
     --repositories-file /dev/null \
     --repository https://dl-cdn.alpinelinux.org/alpine/v3.22/main \
     add --scripts=no --commit-hooks=no apk-tools-static
