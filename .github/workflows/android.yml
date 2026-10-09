@@ -50,11 +50,13 @@ jobs:
             app/src/main/java/io/musab/arabicterminal/TerminalScreen.java \
             app/src/main/java/io/musab/arabicterminal/CommandBatch.java \
             app/src/main/java/io/musab/arabicterminal/PackageCommands.java \
-            tests/Checks.java tests/DeviceCommandsTest.java tests/CommandBatchTest.java tests/PackageCommandsTest.java
+            app/src/main/java/io/musab/arabicterminal/RootArchive.java \
+            tests/Checks.java tests/DeviceCommandsTest.java tests/CommandBatchTest.java tests/PackageCommandsTest.java tests/RootArchiveTest.java
           java -cp tests/out Checks
           java -cp tests/out DeviceCommandsTest
           java -cp tests/out CommandBatchTest
           java -cp tests/out PackageCommandsTest
+          java -cp tests/out RootArchiveTest
       - name: بناء APK عبر Android SDK وNDK
         run: gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug
       - name: إيداع APK قابل للتثبيت
