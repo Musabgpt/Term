@@ -465,6 +465,90 @@ public final class MainActivity extends Activity {
                 notice(PhoneController.run(this,ArabicCommandRouter.parse("تفعيل التحكم"))))
             .show();
     }
+
+    /** Run package operations only in the existing Alpine Linux session. */
+    private boolean packageReady(){
+        if(service==null||active==null||active.finished||!active.linux){
+            notice("إدارة الحزم متاحة فقط داخل جلسة Alpine Linux نشطة.");
+            return false;
+        }
+        if(!new File(LinuxEnvironment.rootfs(this),"usr/local/bin/apk-v2").isFile()){
+            notice("apk-v2 غير موجود. استخدم الإصدار الذي يتضمن مدير الحزم المتوافق.");
+            return false;
+        }
+        return true;
+    }
+    private void runPackage(PackageCommands.Action action,String name){
+        if(!packageReady())return;
+        final String command;
+        try{command=PackageCommands.command(action,name);}
+        catch(IllegalArgumentException ex){
+            Toast.makeText(this,ex.getMessage(),Toast.LENGTH_LONG).show();
+            return;
+        }
+        // Avoid targeting a different session if the user switches tabs before
+        // confirming the dialog.
+        final TerminalService.Session target=active;
+        if(action==PackageCommands.Action.INSTALL||action==PackageCommands.Action.REMOVE){
+            String verb=action==PackageCommands.Action.INSTALL?"تثبيت":"حذف";
+            String warning=action==PackageCommands.Action.REMOVE?
+                "قد تُحذف أيضًا تبعيات لم تعد مطلوبة. ":"";
+            new AlertDialog.Builder(this)
+                .setTitle("تأكيد "+verb+" حزمة")
+                .setMessage("الحزمة: "+PackageCommands.checkedName(name)+"\n"+warning+
+                    "سيجري فحص محاكاة وإنشاء نسخة احتياطية من قاعدة الحزم قبل التنفيذ.\n"+
+                    "اخرج من nano أو أي برنامج تفاعلي قبل الموافقة.")
+                .setNegativeButton("إلغاء",null)
+                .setPositiveButton(verb,(d,w)->write(target,command))
+                .show();
+        }else{
+            write(target,command);
+        }
+    }
+    private void openPackageManager(){
+        if(!packageReady())return;
+        LinearLayout panel=new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(12),dp(7),dp(12),dp(5));
+        TextView guide=label("مدير apk-v2\n"+
+            "البحث والتثبيت والحذف، مع محاكاة ونسخة احتياطية قبل أي تعديل. "+
+            "الترقية الشاملة غير متاحة. أغلق البرامج التفاعلية قبل الاستخدام.",12,MUTED);
+        panel.addView(guide);
+        EditText packageName=new EditText(this);
+        packageName.setSingleLine(true);
+        packageName.setTextDirection(View.TEXT_DIRECTION_LTR);
+        packageName.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        packageName.setHint("مثال: tree أو python3");
+        panel.addView(packageName,new LinearLayout.LayoutParams(-1,dp(55)));
+        AlertDialog dialog=new AlertDialog.Builder(this)
+            .setTitle("إدارة حزم Alpine")
+            .setView(panel)
+            .setNegativeButton("إغلاق",null)
+            .create();
+        LinearLayout inspect=row();
+        panel.addView(inspect);
+        packageButton(inspect,"بحث",dialog,packageName,PackageCommands.Action.SEARCH);
+        packageButton(inspect,"تفاصيل",dialog,packageName,PackageCommands.Action.DETAILS);
+        packageButton(inspect,"المثبتة",dialog,packageName,PackageCommands.Action.INSTALLED);
+        LinearLayout change=row();
+        panel.addView(change);
+        packageButton(change,"تحديث",dialog,packageName,PackageCommands.Action.UPDATE);
+        packageButton(change,"تثبيت",dialog,packageName,PackageCommands.Action.INSTALL);
+        packageButton(change,"حذف",dialog,packageName,PackageCommands.Action.REMOVE);
+        dialog.show();
+    }
+    private void packageButton(LinearLayout parent,String title,AlertDialog dialog,
+                               EditText input,PackageCommands.Action action){
+        Button b=button(title,v->{
+            String name=input.getText().toString();
+            try{PackageCommands.command(action,name);}
+            catch(IllegalArgumentException ex){input.setError(ex.getMessage());return;}
+            dialog.dismiss();
+            runPackage(action,name);
+        });
+        parent.addView(b,new LinearLayout.LayoutParams(0,dp(47),1));
+    }
+
     private void help(){
         new AlertDialog.Builder(this).setTitle("دليل الطرفية العربية")
             .setMessage("الملفات — قائمة الملفات\nأين أنا — مجلد العمل\nالهاتف — معلومات الهاتف"+
