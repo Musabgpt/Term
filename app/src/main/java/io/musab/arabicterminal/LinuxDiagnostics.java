@@ -23,7 +23,11 @@ public final class LinuxDiagnostics {
             "curl -I -L -sS --connect-timeout 7 --max-time 12 " +
             "'https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/APKINDEX.tar.gz' " +
             "2>&1 | head -n 14; " +
-            "printf '\\n[6] apk repository indexes\\n'; apk update 2>&1; " +
+            "printf '\\n[6] apk repository indexes\\n'; apk -vv update 2>&1; " +
+            "printf '\\n[7] Signed APK v2 optional compatibility test\\n'; " +
+            "if command -v apk-v2 >/dev/null 2>&1; then " +
+            "apk-v2 --version; apk-v2 update 2>&1; " +
+            "else echo 'apk-v2 is not installed'; fi; " +
             "printf '\\n=== END OF DIAGNOSTICS ===\\n'\\n";
     }
 }
