@@ -23,6 +23,10 @@ class TestTermAgent(unittest.TestCase):
             with self.assertRaises(ValueError):
                 agent.safe_path(self.root,name,write=True)
 
+    def test_list_root(self):
+        result=agent.execute(self.root,self.state,"list_files",{"path":"."},False)
+        self.assertIsInstance(result,str)
+
     def test_symlink_escape(self):
         (self.root/"link").symlink_to(self.root.parent,target_is_directory=True)
         with self.assertRaises(ValueError):
