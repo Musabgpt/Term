@@ -52,3 +52,8 @@ New Alpine Package Manager menu for search, package details, installed packages,
 - **Regression coverage**: Secure restoration and new VT behavior are exercised by the standalone Java tests; the Android app and bundled native PTY are still built in CI.
 - **Signing limitation**: CI generates a fresh Android debug signature; it cannot be assumed to update a differently signed installation in place. **Do not uninstall an existing APK with valuable files** until an export outside app storage has been verified. Export ZIPs may include private tokens and SSH keys and are **not encrypted**.
 - **Handset verification still required**: In particular check Android document-provider export/restore, interactive nano/vim/tmux cursor positioning, and PRoot background sessions. Passing CI alone is not proof of phone success.
+
+
+## v0.11.0 — Term Agent AI coding runtime
+
+An offline-bundled, standard-library Python coding agent runtime is added to the app's Alpine Linux. The app menu **🤖 وكيل البرمجة** opens diagnostics, tool list, task status and setup help. The agent supports OpenAI-compatible tool-calling API endpoints, project-scoped file actions, an opt-in bounded command runner, SQLite checkpoint/event history, per-file backups/rollback, iterative repair loops and independent verification commands. See [agent/README.md](agent/README.md). Optional Pi, Ralph, GitHub CLI and pytest installs require network and may need Alpine/Android compatibility checks. The APK does **not** bundle a language model or API access; real Android handset validation is still required.

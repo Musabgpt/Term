@@ -27,6 +27,17 @@ docker run --rm --network host \
     test -f /opt/guest/usr/bin/node || test -L /opt/guest/usr/bin/node
   '
 
+# Ship the autonomous coding engine offline. Optional network-installed add-ons
+# are deliberately not fetched during the Android build.
+mkdir -p "$STAGING/opt/term-agent" "$STAGING/usr/local/bin"
+cp "$ROOT/agent/agent.py" "$STAGING/opt/term-agent/agent.py"
+cp "$ROOT/agent/tool-registry.json" "$STAGING/opt/term-agent/tool-registry.json"
+cp "$ROOT/agent/term-agent.sh" "$STAGING/usr/local/bin/term-agent"
+cp "$ROOT/agent/term-agent-addons.sh" "$STAGING/usr/local/bin/term-agent-addons"
+chmod 755 "$STAGING/usr/local/bin/term-agent" "$STAGING/usr/local/bin/term-agent-addons"
+python3 -m py_compile "$ROOT/agent/agent.py"
+test -s "$STAGING/opt/term-agent/agent.py"
+
 # apk-tools v3 uses syscalls not always supported by Android PRoot.
 # Install the official Alpine 3.22 ARM64 apk-tools v2 static package using
 # Alpine's signed-index and package verification, and keep current apk intact.

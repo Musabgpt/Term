@@ -35,7 +35,9 @@ public final class LinuxEnvironment {
         if(installed(c) && new File(rootfs(c),"usr/bin/python3").exists() &&
                 new File(rootfs(c),"usr/bin/node").exists() &&
                 new File(rootfs(c),"bin/bash").exists() &&
-                new File(rootfs(c),"usr/local/bin/apk-v2").exists()){
+                new File(rootfs(c),"usr/local/bin/apk-v2").exists() &&
+                new File(rootfs(c),"opt/term-agent/agent.py").isFile() &&
+                new File(rootfs(c),"usr/local/bin/term-agent").isFile()){
             refreshDns(c);
             return;
         }
@@ -86,7 +88,7 @@ public final class LinuxEnvironment {
                 throw new IOException("تعذر تفعيل ملفات لينكس");
             }
             Files.write(new File(root,".arabicterminal-installed").toPath(),
-                "Alpine 3.24.2 + offline-tools v0.8\n".getBytes(
+                "Alpine 3.24.2 + agent-runtime-v1\n".getBytes(
                     java.nio.charset.StandardCharsets.UTF_8));
             refreshDns(c);
             if(backup.exists())remove(backup);
