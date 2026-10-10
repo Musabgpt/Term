@@ -24,6 +24,11 @@ jobs:
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.2.12479018' 'cmake;3.22.1'
+      - name: اختبار وكيل البرمجة والاستمرارية والأمان
+        run: |
+          python3 -m unittest discover -s agent_tests -v
+          python3 -m py_compile agent/agent.py
+          bash -n agent/term-agent.sh agent/term-agent-addons.sh
       - name: تضمين Alpine Linux وPRoot بالتحقق من البصمات
         run: |
           sudo apt-get update -qq
@@ -38,6 +43,8 @@ jobs:
           tar -tzf app/src/main/assets/alpine-rootfs.tgz | grep -Fq './usr/bin/git'
           tar -tzf app/src/main/assets/alpine-rootfs.tgz | grep -Fq './usr/bin/node'
           tar -tzf app/src/main/assets/alpine-rootfs.tgz | grep -Fq './usr/bin/npm'
+          tar -tzf app/src/main/assets/alpine-rootfs.tgz | grep -Fq './usr/local/bin/term-agent'
+          tar -tzf app/src/main/assets/alpine-rootfs.tgz | grep -Fq './opt/term-agent/agent.py'
       - name: تثبيت Gradle
         uses: gradle/actions/setup-gradle@v4
         with:

@@ -226,7 +226,7 @@ public final class MainActivity extends Activity {
         String[] names={"لينكس: جلسة جديدة","صدفة أندرويد","صلاحيات Root",
             "الجلسة السابقة","إغلاق الجلسة","تبديل وضع الإدخال",
             "صلاحيات التحكم بالهاتف","استيراد ملف","تصدير مشاريع /root","استعادة ZIP إلى /root","نسخ الشاشة","لصق الحافظة",
-            "نسخ الأمر المكتوب","تحديث العرض","إدارة حزم Alpine","مساعدة"};
+            "نسخ الأمر المكتوب","تحديث العرض","إدارة حزم Alpine","مساعدة","🤖 وكيل البرمجة"};
         for(int i=0;i<names.length;i++)popup.getMenu().add(0,i+1,i,names[i]);
         popup.setOnMenuItemClickListener(item->{
             switch(item.getItemId()){
@@ -251,6 +251,7 @@ public final class MainActivity extends Activity {
                     render();break;
                 case 15:openPackageManager();break;
                 case 16:help();break;
+                case 17:openAgentMenu();break;
                 default:return false;
             }
             return true;
@@ -565,6 +566,27 @@ public final class MainActivity extends Activity {
         parent.addView(b,new LinearLayout.LayoutParams(0,dp(47),1));
     }
 
+    private void openAgentMenu(){
+        if(active==null||!active.linux){
+            notice("افتح جلسة Alpine Linux أولاً لاستخدام الوكيل.");return;
+        }
+        String[] entries={"فحص بيئة الوكيل","الأدوات المثبتة والإضافات","حالة المهمة الحالية","تعليمات البدء"};
+        new AlertDialog.Builder(this).setTitle("🤖 Term Agent — بيئة البرمجة")
+            .setItems(entries,(dialog,index)->{
+                switch(index){
+                    case 0:write(active,"term-agent doctor\n");break;
+                    case 1:write(active,"term-agent tools\n");break;
+                    case 2:write(active,"term-agent status\n");break;
+                    case 3:
+                        notice("لبدء مشروع:\nmkdir -p /root/projects/demo\ncd /root/projects/demo\nterm-agent init"+
+                        "\nterm-agent check-add 'python3 -V'"+
+                        "\nثم اضبط TERM_AGENT_API_BASE وTERM_AGENT_MODEL"+
+                        "\nوشغّل: term-agent run 'هدفك' --allow-exec"+
+                        "\nيمكنك إضافة Pi وRalph عبر term-agent-addons help");
+                        break;
+                }
+            }).setNegativeButton("إغلاق",null).show();
+    }
     private void help(){
         new AlertDialog.Builder(this).setTitle("دليل الطرفية العربية")
             .setMessage("الملفات — قائمة الملفات\nأين أنا — مجلد العمل\nالهاتف — معلومات الهاتف"+
