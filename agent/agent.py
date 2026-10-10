@@ -60,7 +60,7 @@ def safe_path(root, value, write=False):
     if not isinstance(value,str) or not value or "\x00" in value:
         raise ValueError("Invalid path")
     relative = Path(value)
-    if relative.is_absolute() or ".." in relative.parts or relative.parts[0] in (STATE, ".git"):
+    if relative.is_absolute() or ".." in relative.parts or (relative.parts and relative.parts[0] in (STATE, ".git")):
         raise ValueError("Restricted project path")
     candidate = (root/relative).resolve()
     if not candidate.is_relative_to(root) or (write and candidate == root):
