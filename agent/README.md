@@ -41,3 +41,14 @@ MCP servers, Tree-sitter, ast-grep, pytest, Vitest and ESLint are optional tools
 GitHub Actions is already configured for APK build and tests. Termux:API/Termux:Boot are not compatible drop-in packages for this standalone app.
 
 Offline tests: `python3 -m unittest discover -s agent_tests -v`.
+
+## Bundled developer tools and security
+
+pytest is preinstalled. The signed Alpine package installer attempts to include
+GitHub CLI, Tree-sitter CLI and ast-grep; if repositories lack a package, that
+individual tool is left optional. Use `term-agent tools` to inspect availability.
+`term-agent-watch 5 30` auto-resumes a goal for at most five 30-step runs.
+It stops on completion, repeated failure, configuration errors or its run cap.
+Code execution is opt-in when starting a goal; it is not isolated from other
+app-private files. Commands are passed filtered environment variables to avoid
+exposing API secrets by default.

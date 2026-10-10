@@ -33,7 +33,7 @@
     "name": "GitHub CLI",
     "binary": "gh",
     "purpose": "GitHub PRs and Actions",
-    "install": "term-agent-addons github"
+    "install": "bundled when Alpine package is available; check with term-agent tools"
   },
   {
     "name": "Pi coding agent",
@@ -51,7 +51,7 @@
     "name": "pytest",
     "binary": "pytest",
     "purpose": "Python tests",
-    "install": "term-agent-addons python-tests"
+    "install": "bundled"
   },
   {
     "name": "Vitest",
@@ -69,13 +69,13 @@
     "name": "Tree-sitter",
     "binary": "tree-sitter",
     "purpose": "Code syntax parser",
-    "install": "Obtain supported Alpine aarch64 binary"
+    "install": "bundled when Alpine package is available; check with term-agent tools"
   },
   {
     "name": "ast-grep",
     "binary": "ast-grep",
     "purpose": "Structural search and refactoring",
-    "install": "Obtain supported Alpine aarch64 binary"
+    "install": "bundled when Alpine package is available; check with term-agent tools"
   },
   {
     "name": "MCP servers",
@@ -88,5 +88,11 @@
     "binary": "git",
     "purpose": "Remote APK build and CI",
     "install": "configured in repository"
+  },
+  {
+    "name": "Watchdog loop",
+    "binary": "term-agent-watch",
+    "purpose": "Resumable bounded coding loop",
+    "install": "bundled"
   }
 ]

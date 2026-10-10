@@ -52,6 +52,14 @@ class TestTermAgent(unittest.TestCase):
         self.assertIn("not allowed",agent.command(self.root,"rm -rf ./",True))
         self.assertEqual(json.loads(agent.command(self.root,"python3 -V",True))["exit_code"],0)
 
+    def test_key_scrubbed_from_child_process(self):
+        with patch.dict(os.environ, {"TERM_AGENT_API_KEY":"SHOULD_NOT_BE_EXPOSED","GITHUB_TOKEN":"ALSO_SECRET"}):
+            result=agent.command(self.root,
+                "python3 -c 'import os; print(os.getenv(\"TERM_AGENT_API_KEY\", \"removed\")); print(os.getenv(\"GITHUB_TOKEN\", \"removed\"))'", True)
+        data=json.loads(result)
+        self.assertEqual(data["exit_code"],0)
+        self.assertEqual(data["stdout"].strip().splitlines(),["removed","removed"])
+
     def test_check_required(self):
         ok,message=agent.verify(self.root,self.state,True)
         self.assertFalse(ok)

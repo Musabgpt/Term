@@ -21,7 +21,14 @@ docker run --rm --network host \
     apk --root /opt/guest --arch aarch64 add --scripts=no --commit-hooks=no \
         python3 py3-pip git nodejs npm curl ca-certificates-bundle \
         bash coreutils findutils grep sed nano less tmux htop jq ripgrep \
-        procps openssh-client zip unzip file
+        procps openssh-client zip unzip file py3-pytest
+    for optional in github-cli tree-sitter-cli ast-grep; do
+        if apk --root /opt/guest --arch aarch64 add --scripts=no --commit-hooks=no "$optional"; then
+            echo "Bundled Alpine developer tool: $optional"
+        else
+            echo "WARNING: optional Alpine developer tool unavailable: $optional" >&2
+        fi
+    done
     apk --root /opt/guest --arch aarch64 info -e python3 git nodejs npm bash coreutils nano tmux
     test -f /opt/guest/usr/bin/python3 || test -L /opt/guest/usr/bin/python3
     test -f /opt/guest/usr/bin/node || test -L /opt/guest/usr/bin/node
@@ -34,9 +41,11 @@ cp "$ROOT/agent/agent.py" "$STAGING/opt/term-agent/agent.py"
 cp "$ROOT/agent/tool-registry.json" "$STAGING/opt/term-agent/tool-registry.json"
 cp "$ROOT/agent/term-agent.sh" "$STAGING/usr/local/bin/term-agent"
 cp "$ROOT/agent/term-agent-addons.sh" "$STAGING/usr/local/bin/term-agent-addons"
-chmod 755 "$STAGING/usr/local/bin/term-agent" "$STAGING/usr/local/bin/term-agent-addons"
+cp "$ROOT/agent/term-agent-watch.sh" "$STAGING/usr/local/bin/term-agent-watch"
+chmod 755 "$STAGING/usr/local/bin/term-agent" "$STAGING/usr/local/bin/term-agent-addons" "$STAGING/usr/local/bin/term-agent-watch"
 python3 -m py_compile "$ROOT/agent/agent.py"
 test -s "$STAGING/opt/term-agent/agent.py"
+test -s "$STAGING/usr/bin/pytest"
 
 # apk-tools v3 uses syscalls not always supported by Android PRoot.
 # Install the official Alpine 3.22 ARM64 apk-tools v2 static package using

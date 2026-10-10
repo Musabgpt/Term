@@ -106,7 +106,14 @@ def command(root, cmd, approved, timeout=90):
     if not args or "/" in args[0] or args[0] not in COMMANDS:
         return "Executable not allowed. Allowed: "+", ".join(sorted(COMMANDS))
     try:
-        run = subprocess.run(args,cwd=root,text=True,input="",capture_output=True,timeout=timeout)
+        # Hide provider tokens and common secrets from untrusted project processes.
+        # Commands can still read user project files: this is NOT a sandbox.
+        child_env={k:v for k,v in os.environ.items()
+                   if not (k.upper().endswith(("_KEY","_TOKEN","_SECRET","_PASSWORD"))
+                           or k.upper() in ("TERM_AGENT_API_KEY","AWS_ACCESS_KEY_ID",
+                                            "AWS_SECRET_ACCESS_KEY","GH_TOKEN","GITHUB_TOKEN"))}
+        run=subprocess.run(args,cwd=root,text=True,input="",capture_output=True,
+                           timeout=timeout,env=child_env)
         return json.dumps({"exit_code":run.returncode,"stdout":run.stdout[-7000:],
                            "stderr":run.stderr[-4000:]},ensure_ascii=False)
     except subprocess.TimeoutExpired:
