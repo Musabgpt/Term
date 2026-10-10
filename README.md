@@ -57,3 +57,8 @@ New Alpine Package Manager menu for search, package details, installed packages,
 ## v0.11.0 — Term Agent AI coding runtime
 
 An offline-bundled, standard-library Python coding agent runtime is added to the app's Alpine Linux. The app menu **🤖 وكيل البرمجة** opens diagnostics, tool list, task status and setup help. The agent supports OpenAI-compatible tool-calling API endpoints, project-scoped file actions, an opt-in bounded command runner, SQLite checkpoint/event history, per-file backups/rollback, iterative repair loops and independent verification commands. See [agent/README.md](agent/README.md). Optional Pi, Ralph, GitHub CLI and pytest installs require network and may need Alpine/Android compatibility checks. The APK does **not** bundle a language model or API access; real Android handset validation is still required.
+
+
+## v0.11.1 — Coding tool bundle
+
+Build packages pytest plus best-effort GitHub CLI, Tree-sitter CLI and ast-grep from signed Alpine ARM64 repositories. Adds bounded watchdog resume utility and removes API credential environment variables from child processes.
